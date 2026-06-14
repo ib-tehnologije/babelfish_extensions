@@ -3475,7 +3475,8 @@ constant_LOCAL_ID
 // https://docs.microsoft.com/en-us/sql/t-sql/language-elements/expressions-transact-sql
 // Operator precendence: https://docs.microsoft.com/en-us/sql/t-sql/language-elements/operator-precedence-transact-sql
 expression
-    : clr_udt_func_call                                                         #clr_udt_expr
+    : subquery                                                                  #subquery_expr
+    | clr_udt_func_call                                                         #clr_udt_expr
     | expression collation                                                      #collate_expr
     | expression AT_KEYWORD TIME ZONE expression                                #time_zone_expr
     | op=(MINUS | PLUS | BIT_NOT) expression                                    #unary_op_expr
@@ -3759,13 +3760,13 @@ table_source_item
 	| table_source_item PIVOT pivot_clause         as_table_alias?
 	| table_source_item UNPIVOT unpivot_clause     as_table_alias?
 	| table_source_item for_system_time            as_table_alias?
+	| (LOCAL_ID DOT)? function_call               (as_table_alias column_alias_list?)?
 	| full_object_name                            (as_table_alias|with_table_hints)*
 	| local_id					                  (as_table_alias|with_table_hints)*
 	| derived_table                               (as_table_alias column_alias_list?)?
 	| subquery                                     as_table_alias?
 	| rowset_function                              as_table_alias?
     | xml_nodes_method                            (as_table_alias column_alias_list?)?
-	| (LOCAL_ID DOT)? function_call               (as_table_alias column_alias_list?)?
 	| LR_BRACKET table_source_item RR_BRACKET
     | colon_colon function_call                    as_table_alias? // Built-in function (old syntax)
 	| odbc_outer_join
@@ -4092,7 +4093,7 @@ table_value_constructor
     ;
 
 function_arg_list
-    : ( STAR | expression ) (COMMA exp+=expression)*
+    : ( STAR | subquery | expression ) (COMMA (subquery | exp+=expression))*
     ;
     
 expression_list

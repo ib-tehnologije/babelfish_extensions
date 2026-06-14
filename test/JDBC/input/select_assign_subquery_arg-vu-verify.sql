@@ -1,0 +1,37 @@
+DROP FUNCTION IF EXISTS dbo.select_assign_subquery_arg_scalar;
+GO
+
+DROP FUNCTION IF EXISTS dbo.select_assign_subquery_arg_itvf;
+GO
+
+CREATE FUNCTION dbo.select_assign_subquery_arg_itvf(@i int)
+RETURNS TABLE
+AS
+RETURN
+    SELECT @i AS anRounded;
+GO
+
+CREATE FUNCTION dbo.select_assign_subquery_arg_scalar()
+RETURNS int
+AS
+BEGIN
+    DECLARE @result int;
+
+    SELECT @result = anRounded
+    FROM dbo.select_assign_subquery_arg_itvf((SELECT 42));
+
+    RETURN @result;
+END;
+GO
+
+SELECT CASE WHEN OBJECT_ID('dbo.select_assign_subquery_arg_scalar') IS NULL THEN 0 ELSE 1 END;
+GO
+
+SELECT dbo.select_assign_subquery_arg_scalar();
+GO
+
+DROP FUNCTION dbo.select_assign_subquery_arg_scalar;
+GO
+
+DROP FUNCTION dbo.select_assign_subquery_arg_itvf;
+GO

@@ -4483,6 +4483,14 @@ END;
 $$ 
 LANGUAGE plpgsql IMMUTABLE STRICT;
 
+CREATE OR REPLACE FUNCTION sys.stastext(expression sys.varbinary)
+RETURNS sys.nvarchar AS
+$$
+    SELECT pg_catalog.encode(expression::bytea, 'escape')::sys.nvarchar;
+$$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
+GRANT EXECUTE ON FUNCTION sys.stastext(sys.varbinary) TO PUBLIC;
+
 CREATE OR REPLACE FUNCTION objectproperty(
     id INT,
     property SYS.VARCHAR

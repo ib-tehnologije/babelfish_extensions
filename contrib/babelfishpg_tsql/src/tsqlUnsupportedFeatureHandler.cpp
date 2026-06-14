@@ -620,7 +620,19 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitColumn_definition(TSqlPars
 	if (ctx->ROWGUIDCOL())
 		handle(INSTR_UNSUPPORTED_TSQL_COLUMN_OPTION_ROWGUIDCOL, ctx->ROWGUIDCOL(), &st_escape_hatch_rowguidcol_column);
 
-	if (ctx->inline_index())
+	bool is_declare_table_type = false;
+	auto pctx = ctx->parent;
+	while (pctx)
+	{
+		if (dynamic_cast<TSqlParser::Table_type_definitionContext *>(pctx))
+		{
+			is_declare_table_type = dynamic_cast<TSqlParser::Declare_statementContext *>(pctx->parent) != nullptr;
+			break;
+		}
+		pctx = pctx->parent;
+	}
+
+	if (ctx->inline_index() && !(babelfish_dump_restore && is_declare_table_type))
 		handle(INSTR_UNSUPPORTED_TSQL_INLINE_INDEX, "INLINE INDEX", getLineAndPos(ctx->inline_index()));
 
 	return visitChildren(ctx);

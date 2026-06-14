@@ -673,6 +673,82 @@ inline std::u32string utf8_to_utf32(const char* s)
 	return antlrcpp::Utf8::lenientDecode(std::string_view(s, strlen(s)));
 }
 
+static bool
+is_tsql_ignored_unicode_space(char32_t ch)
+{
+	switch (ch)
+	{
+		case U'\u00a0': /* non-breaking space */
+		case U'\u0008': /* backspace */
+		case U'\u000b': /* vertical tab */
+		case U'\u000c': /* form feed */
+		case U'\u200b': /* zero width space */
+		case U'\u202f': /* narrow no-break space */
+		case U'\u3000': /* ideographic space */
+			return true;
+		default:
+			return false;
+	}
+}
+
+static void
+normalize_tsql_ignored_unicode_spaces(std::u32string &query)
+{
+	bool in_single_quote = false;
+	bool in_double_quote = false;
+	bool in_bracket_identifier = false;
+
+	for (size_t i = 0; i < query.length(); ++i)
+	{
+		char32_t ch = query[i];
+
+		if (in_single_quote)
+		{
+			if (ch == U'\'' && i + 1 < query.length() && query[i + 1] == U'\'')
+			{
+				++i;
+				continue;
+			}
+			if (ch == U'\'')
+				in_single_quote = false;
+			continue;
+		}
+
+		if (in_double_quote)
+		{
+			if (ch == U'"' && i + 1 < query.length() && query[i + 1] == U'"')
+			{
+				++i;
+				continue;
+			}
+			if (ch == U'"')
+				in_double_quote = false;
+			continue;
+		}
+
+		if (in_bracket_identifier)
+		{
+			if (ch == U']' && i + 1 < query.length() && query[i + 1] == U']')
+			{
+				++i;
+				continue;
+			}
+			if (ch == U']')
+				in_bracket_identifier = false;
+			continue;
+		}
+
+		if (ch == U'\'')
+			in_single_quote = true;
+		else if (ch == U'"')
+			in_double_quote = true;
+		else if (ch == U'[')
+			in_bracket_identifier = true;
+		else if (is_tsql_ignored_unicode_space(ch))
+			query[i] = U' ';
+	}
+}
+
 class MyInputStream : public ANTLRInputStream
 {
 public:
@@ -793,9 +869,20 @@ void PLtsql_expr_query_mutator::run()
 	 * To rewrite query based on token position, we have to convert a query string to std::u32string first
 	 * so that offset should indicate a correct position to be replaced.
 	 */
-	if (m.size() == 0) return;  // nothing to do
-		
 	std::u32string query = utf8_to_utf32(expr->query);
+
+	if (m.size() == 0)
+	{
+		std::u32string normalized_query = query;
+		normalize_tsql_ignored_unicode_spaces(normalized_query);
+		if (normalized_query != query)
+		{
+			std::string new_query = antlrcpp::Utf8::lenientEncode(std::u32string_view(normalized_query));
+			expr->query = pstrdup(new_query.c_str());
+		}
+		return;
+	}
+
 	std::u32string rewritten_query;
 			
 	size_t cursor = 0; // cursor to expr->query where next copy should start
@@ -826,6 +913,8 @@ void PLtsql_expr_query_mutator::run()
 	if (cursor < strlen(expr->query))
 		rewritten_query += query.substr(cursor); // copy remaining expr->query
 		
+	normalize_tsql_ignored_unicode_spaces(rewritten_query);
+
 	// update query string
 	std::string new_query = antlrcpp::Utf8::lenientEncode(std::u32string_view(rewritten_query));
 	expr->query = pstrdup(new_query.c_str());
@@ -8792,6 +8881,9 @@ post_process_declare_table_statement(PLtsql_stmt_decl_table *stmt, TSqlParser::T
 						rewritten_query_fragment.emplace(std::make_pair(actx->UNIQUE()->getSymbol()->getStopIndex()+1 , std::make_pair("", " NULLS NOT DISTINCT")));
 				}
 			}
+
+			if (cdtctx->column_definition() && cdtctx->column_definition()->inline_index())
+				rewrite_inline_index_as_noop_check(cdtctx->column_definition()->inline_index());
 
 		}
 
