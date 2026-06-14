@@ -13,6 +13,7 @@
 #include "mb/pg_wchar.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
+#include "nodes/nodeFuncs.h"
 #include "pltsql.h"
 #include "pltsql_permissions.h"
 #include "storage/lock.h"
@@ -54,6 +55,104 @@ extern char *construct_unique_index_name(char *index_name, char *relation_name);
 extern char *get_physical_schema_name(char *db_name, const char *schema_name);
 extern char *get_dbo_schema_name(const char *dbname);
 PG_FUNCTION_INFO_V1(split_identifier_internal);
+
+static bool
+param_names_match(const char *left, const char *right)
+{
+	if (left == NULL || right == NULL)
+		return false;
+
+	if (pg_strcasecmp(left, right) == 0)
+		return true;
+
+	if (left[0] == '@' && pg_strcasecmp(left + 1, right) == 0)
+		return true;
+
+	if (right[0] == '@' && pg_strcasecmp(left, right + 1) == 0)
+		return true;
+
+	return false;
+}
+
+static const char *
+single_columnref_name(Node *expr)
+{
+	ColumnRef  *cref;
+	Node	   *field;
+
+	if (expr == NULL || !IsA(expr, ColumnRef))
+		return NULL;
+
+	cref = (ColumnRef *) expr;
+	if (list_length(cref->fields) != 1)
+		return NULL;
+
+	field = (Node *) linitial(cref->fields);
+	if (!IsA(field, String))
+		return NULL;
+
+	return strVal(field);
+}
+
+static int
+find_prior_param_index(List *parameters, const char *name, int current_index)
+{
+	ListCell   *lc;
+	int			idx = 0;
+
+	foreach(lc, parameters)
+	{
+		FunctionParameter *fp = (FunctionParameter *) lfirst(lc);
+
+		if (idx >= current_index)
+			break;
+
+		if (param_names_match(fp->name, name))
+			return idx;
+
+		idx++;
+	}
+
+	return -1;
+}
+
+static Node *
+make_raw_null_default(Node *old_default)
+{
+	A_Const    *n = makeNode(A_Const);
+
+	n->isnull = true;
+	n->location = old_default ? exprLocation(old_default) : -1;
+
+	return (Node *) n;
+}
+
+static List *
+rewrite_param_ref_defaults(List *parameters)
+{
+	List	   *source_positions = NIL;
+	ListCell   *lc;
+	int			idx = 0;
+
+	foreach(lc, parameters)
+	{
+		FunctionParameter *fp = (FunctionParameter *) lfirst(lc);
+		const char *default_name = single_columnref_name(fp->defexpr);
+		int			source_idx = -1;
+
+		if (default_name && default_name[0] == '@')
+		{
+			source_idx = find_prior_param_index(parameters, default_name, idx);
+			if (source_idx >= 0)
+				fp->defexpr = make_raw_null_default(fp->defexpr);
+		}
+
+		source_positions = lappend(source_positions, makeInteger(source_idx));
+		idx++;
+	}
+
+	return source_positions;
+}
 
 /* To cache oid of sys.varchar */
 static Oid sys_varcharoid = InvalidOid;
@@ -181,6 +280,7 @@ pltsql_createFunction(ParseState *pstate, PlannedStmt *pstmt, const char *queryS
 	ObjectAddress tbltyp;
 	int origname_location = -1;
 	bool with_recompile = false;
+	List *default_source_positions = NIL;
 
 	pstate->p_sourcetext = queryString;
 
@@ -345,10 +445,11 @@ pltsql_createFunction(ParseState *pstate, PlannedStmt *pstmt, const char *queryS
 				CommandCounterIncrement();
 			}
 
+			default_source_positions = rewrite_param_ref_defaults(stmt->parameters);
 			address = CreateFunction(pstate, stmt);
 
 			/* Store function/procedure related metadata in babelfish catalog */
-			pltsql_store_func_default_positions(address, stmt->parameters, queryString, origname_location, with_recompile);
+			pltsql_store_func_default_positions(address, stmt->parameters, default_source_positions, queryString, origname_location, with_recompile);
 
 			if (tbltypStmt || restore_tsql_tabletype)
 			{

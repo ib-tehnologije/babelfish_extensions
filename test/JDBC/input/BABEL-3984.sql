@@ -1,3 +1,15 @@
+DROP PROCEDURE IF EXISTS babel_3984_procedure
+GO
+
+DROP PROCEDURE IF EXISTS babel_3984_procedure2
+GO
+
+DROP FUNCTION IF EXISTS babel_3984_function
+GO
+
+DROP FUNCTION IF EXISTS babel_3984_function2
+GO
+
 EXEC NoSuchProcedure  
 NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
 NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
@@ -70,7 +82,7 @@ SELECT * FROM NoSuchFunction
 );
 GO
 
--- max allowed
+-- 100 arguments remains valid
 CREATE PROCEDURE babel_3984_procedure
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -95,13 +107,13 @@ EXEC babel_3984_procedure
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 GO
 
--- call for more than max should throw error
+-- call with more arguments than declared should throw error
 EXEC babel_3984_procedure
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 GO
 
--- create for more than allowed should also throw error
+-- more than 100 arguments is allowed by the raised PostgreSQL limit
 CREATE PROCEDURE babel_3984_procedure2
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -116,7 +128,7 @@ AS
 SELECT 1
 GO
 
--- max allowed
+-- 100 arguments remains valid
 CREATE FUNCTION babel_3984_function
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -148,7 +160,7 @@ SELECT * FROM babel_3984_function
 )
 GO
 
--- call for more than allowed should throw error
+-- call with more arguments than declared should throw error
 SELECT * FROM babel_3984_function
 (
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -156,7 +168,7 @@ SELECT * FROM babel_3984_function
 )
 GO
 
--- create for more than allowed should also throw error
+-- more than 100 arguments is allowed by the raised PostgreSQL limit
 CREATE FUNCTION babel_3984_function2
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -186,6 +198,11 @@ GO
 DROP PROCEDURE babel_3984_procedure
 GO
 
+DROP PROCEDURE babel_3984_procedure2
+GO
+
 DROP FUNCTION babel_3984_function
 GO
 
+DROP FUNCTION babel_3984_function2
+GO

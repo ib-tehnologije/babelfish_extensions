@@ -184,6 +184,10 @@ static void pre_transform_insert(ParseState *pstate, InsertStmt *stmt, Query *qu
 static void modify_RangeTblFunction_tupdesc(char *funcname, Node *expr, TupleDesc *tupdesc);
 static void sort_nulls_first(SortGroupClause * sortcl, bool reverse);
 static int getDefaultPosition(const List *default_positions, const ListCell *def_idx, int argPosition);
+static int get_default_position(Node *default_position_entry);
+static int get_default_source_position(Node *default_position_entry);
+static Node *resolve_default_from_argarray(Node *default_expr, Node **argarray, int source_position);
+static Node *resolve_default_from_list(Node *default_expr, List *args, int source_position);
 static List* replace_pltsql_function_defaults(HeapTuple func_tuple, List *defaults, List *fargs);
 static Node* optimize_explicit_cast(ParseState *pstate, Node *node);
 
@@ -3469,7 +3473,7 @@ pltsql_report_proc_not_found_error(List *names, List *fargs, List *given_argname
 						 */
 						while (lc != NULL)
 						{
-							int			position = intVal((Node *) lfirst(lc));
+							int			position = get_default_position((Node *) lfirst(lc));
 
 							if (position == pp)
 							{
@@ -4241,7 +4245,7 @@ is_antlr_parse_cache_enabled_for_routine(HeapTuple proctup, HeapTuple bbftup)
  * Updates the existing catalog entry if it already exists.
  */
 void
-pltsql_store_func_default_positions(ObjectAddress address, List *parameters, const char *queryString, int origname_location, bool with_recompile)
+pltsql_store_func_default_positions(ObjectAddress address, List *parameters, List *default_source_positions, const char *queryString, int origname_location, bool with_recompile)
 {
 	Relation	bbf_function_ext_rel;
 	TupleDesc	bbf_function_ext_rel_dsc;
@@ -4257,7 +4261,8 @@ pltsql_store_func_default_positions(ObjectAddress address, List *parameters, con
 	char	   *func_signature;
 	char	   *original_name = NULL;
 	List	   *default_positions = NIL;
-	ListCell   *x;
+	ListCell   *x,
+			   *source_cell = NULL;
 	int			idx;
 	uint64		flag_values = 0,
 				flag_validity = 0;
@@ -4307,13 +4312,24 @@ pltsql_store_func_default_positions(ObjectAddress address, List *parameters, con
 																	 form_proctup->proargtypes.values);
 
 	idx = 0;
+	source_cell = list_head(default_source_positions);
 	foreach(x, parameters)
 	{
 		FunctionParameter *fp = (FunctionParameter *) lfirst(x);
+		int			source_idx = -1;
+
+		if (source_cell)
+		{
+			source_idx = intVal((Node *) lfirst(source_cell));
+			source_cell = lnext(default_source_positions, source_cell);
+		}
 
 		if (fp->defexpr)
 		{
-			default_positions = lappend(default_positions, (Node *) makeInteger(idx));
+			if (source_idx >= 0)
+				default_positions = lappend(default_positions, (Node *) list_make2(makeInteger(idx), makeInteger(source_idx)));
+			else
+				default_positions = lappend(default_positions, (Node *) makeInteger(idx));
 		}
 		idx++;
 	}
@@ -5102,7 +5118,7 @@ match_pltsql_func_call(HeapTuple proctup, int nargs, List *argnames,
 
 					foreach(def_idx, default_positions)
 					{
-						int			position = intVal((Node *) lfirst(def_idx));
+						int			position = get_default_position((Node *) lfirst(def_idx));
 
 						if (position == idx)
 							idx++;
@@ -5303,7 +5319,7 @@ PlTsqlMatchNamedCall(HeapTuple proctup, int nargs, List *argnames,
 				 */
 				while (def_item != NULL && def_idx != NULL)
 				{
-					int			position = intVal((Node *) lfirst(def_idx));
+					int			position = get_default_position((Node *) lfirst(def_idx));
 
 					if (position == pp)
 					{
@@ -5348,12 +5364,63 @@ PlTsqlMatchNamedCall(HeapTuple proctup, int nargs, List *argnames,
 	return true;
 }
 
-static int getDefaultPosition(const List *default_positions, const ListCell *def_idx, int argPosition)
+static int
+get_default_position(Node *default_position_entry)
+{
+	if (IsA(default_position_entry, Integer))
+		return intVal(default_position_entry);
+
+	if (IsA(default_position_entry, List))
+	{
+		List	   *entry = (List *) default_position_entry;
+
+		if (list_length(entry) >= 1 && IsA(linitial(entry), Integer))
+			return intVal((Node *) linitial(entry));
+	}
+
+	elog(ERROR, "invalid PL/tsql default position entry");
+	return -1;
+}
+
+static int
+get_default_source_position(Node *default_position_entry)
+{
+	if (IsA(default_position_entry, List))
+	{
+		List	   *entry = (List *) default_position_entry;
+
+		if (list_length(entry) >= 2 && IsA(lsecond(entry), Integer))
+			return intVal((Node *) lsecond(entry));
+	}
+
+	return -1;
+}
+
+static Node *
+resolve_default_from_argarray(Node *default_expr, Node **argarray, int source_position)
+{
+	if (source_position >= 0 && source_position < FUNC_MAX_ARGS && argarray[source_position] != NULL)
+		return (Node *) copyObject(argarray[source_position]);
+
+	return default_expr;
+}
+
+static Node *
+resolve_default_from_list(Node *default_expr, List *args, int source_position)
+{
+	if (source_position >= 0 && source_position < list_length(args))
+		return (Node *) copyObject(list_nth(args, source_position));
+
+	return default_expr;
+}
+
+static int
+getDefaultPosition(const List *default_positions, const ListCell *def_idx, int argPosition)
 {
 	int currPosition;
 	if (default_positions == NIL || def_idx == NULL)
 		return -1;
-	currPosition = intVal((Node *) lfirst(def_idx));
+	currPosition = get_default_position((Node *) lfirst(def_idx));
 	while (currPosition != argPosition)
 	{
 		def_idx = lnext(default_positions, def_idx);
@@ -5361,7 +5428,7 @@ static int getDefaultPosition(const List *default_positions, const ListCell *def
 		{
 			return -1;
 		}
-		currPosition = intVal((Node *) lfirst(def_idx));
+		currPosition = get_default_position((Node *) lfirst(def_idx));
 	}
 	return list_cell_number(default_positions, def_idx);
 }
@@ -5459,7 +5526,10 @@ replace_pltsql_function_defaults(HeapTuple func_tuple, List *defaults, List *far
 				position = getDefaultPosition(default_positions, def_idx, i);
 				if (position >= 0)
 				{
-					ret = lappend(ret, list_nth(defaults, position));
+					Node	   *default_position_entry = (Node *) list_nth(default_positions, position);
+					int			source_position = get_default_source_position(default_position_entry);
+
+					ret = lappend(ret, resolve_default_from_list((Node *) list_nth(defaults, position), ret, source_position));
 					has_default = true;
 				}
 				else if (proc_form->prokind == PROKIND_FUNCTION)
@@ -5478,7 +5548,10 @@ replace_pltsql_function_defaults(HeapTuple func_tuple, List *defaults, List *far
 				position = getDefaultPosition(default_positions, def_idx, i);
 				if (position >= 0)
 				{
-					newArgs = lappend(newArgs, list_nth(defaults, position));
+					Node	   *default_position_entry = (Node *) list_nth(default_positions, position);
+					int			source_position = get_default_source_position(default_position_entry);
+
+					newArgs = lappend(newArgs, resolve_default_from_list((Node *) list_nth(defaults, position), ret, source_position));
 					for (j = 1; j < list_length(funcExpr->args); ++j)
 						newArgs = lappend(newArgs, list_nth(funcExpr->args, j));
 					funcExpr->args = newArgs;
@@ -5564,10 +5637,12 @@ insert_pltsql_function_defaults(HeapTuple func_tuple, List *defaults, Node **arg
 
 			forboth(def_idx, default_positions, def_item, defaults)
 			{
-				int			position = intVal((Node *) lfirst(def_idx));
+				Node	   *default_position_entry = (Node *) lfirst(def_idx);
+				int			position = get_default_position(default_position_entry);
+				int			source_position = get_default_source_position(default_position_entry);
 
 				if (argarray[position] == NULL)
-					argarray[position] = (Node *) lfirst(def_item);
+					argarray[position] = resolve_default_from_argarray((Node *) lfirst(def_item), argarray, source_position);
 			}
 		}
 
@@ -5751,7 +5826,7 @@ print_pltsql_function_arguments(StringInfo buf, HeapTuple proctup,
 		{
 			if (nextdefaultposition != NULL)
 			{
-				int			position = intVal((Node *) lfirst(nextdefaultposition));
+				int			position = get_default_position((Node *) lfirst(nextdefaultposition));
 				Node	   *defexpr;
 
 				Assert(nextargdefault != NULL);

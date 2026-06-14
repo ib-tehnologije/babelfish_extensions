@@ -1,0 +1,39 @@
+EXEC procedure_param_default_ref_p 'source'
+GO
+~~START~~
+varchar#!#varchar
+source#!#source
+~~END~~
+
+
+EXEC procedure_param_default_ref_p 'source', 'explicit'
+GO
+~~START~~
+varchar#!#varchar
+source#!#explicit
+~~END~~
+
+
+EXEC procedure_param_default_ref_p @a = 'named'
+GO
+~~START~~
+varchar#!#varchar
+named#!#named
+~~END~~
+
+
+EXEC procedure_param_default_ref_p @b = 'bee', @a = 'aye'
+GO
+~~START~~
+varchar#!#varchar
+aye#!#bee
+~~END~~
+
+
+EXEC procedure_param_default_ref_p 'source', NULL
+GO
+~~START~~
+varchar#!#varchar
+source#!#<NULL>
+~~END~~
+

@@ -23,6 +23,7 @@ extern char *gen_func_arg_list(Oid objectId);
 extern char * gen_func_arg_list_from_params(List* parameters);
 extern void pltsql_store_func_default_positions(ObjectAddress address,
                                                 List *parameters,
+                                                List *default_source_positions,
                                                 const char *queryString,
                                                 int origname_location,
                                                 bool with_recompile);
@@ -66,4 +67,3 @@ extern bool check_view_binding_dependencies(Query *viewParse);
 extern void get_xml_data_and_namespace_data(int document_id, xmltype **xml_data, xmltype **ns_data);
 extern void extract_namespaces_from_xml(xmltype *ns_data, char ***ns_names, char ***ns_uris, int *ns_count);
 #endif
-

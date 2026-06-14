@@ -1,0 +1,2 @@
+DROP PROCEDURE procedure_param_default_ref_p
+GO

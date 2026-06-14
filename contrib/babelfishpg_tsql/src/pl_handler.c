@@ -3511,7 +3511,7 @@ bbf_ProcessUtility(PlannedStmt *pstmt,
 							recordDependencyOn(&tbltyp, &address, DEPENDENCY_INTERNAL);
 						}
 						/* Update function/procedure related metadata in babelfish catalog */
-						pltsql_store_func_default_positions(address, cfs->parameters, queryString, origname_location, with_recompile);
+						pltsql_store_func_default_positions(address, cfs->parameters, NIL, queryString, origname_location, with_recompile);
 						/* Increase counter after bbf_func_ext modified in pltsql_store_func_default_positions*/
 						CommandCounterIncrement();
 						/* Clean up table entries for the create function statement if applicable*/

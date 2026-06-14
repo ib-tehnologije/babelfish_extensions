@@ -1,3 +1,15 @@
+DROP PROCEDURE IF EXISTS babel_3984_procedure
+GO
+
+DROP PROCEDURE IF EXISTS babel_3984_procedure2
+GO
+
+DROP FUNCTION IF EXISTS babel_3984_function
+GO
+
+DROP FUNCTION IF EXISTS babel_3984_function2
+GO
+
 EXEC NoSuchProcedure  
 NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
 NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
@@ -8,7 +20,7 @@ NULL,  NULL,  NULL,  NULL,  NULL
 GO
 ~~ERROR (Code: 33557097)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a procedure)~~
+~~ERROR (Message: procedure nosuchprocedure(unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown) does not exist)~~
 
 
 EXEC NoSuchProcedure 
@@ -18,7 +30,7 @@ EXEC NoSuchProcedure
 GO
 ~~ERROR (Code: 33557097)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a procedure)~~
+~~ERROR (Message: procedure nosuchprocedure(integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer) does not exist)~~
 
 
 
@@ -39,7 +51,7 @@ EXEC NoSuchProcedure @a0, @a1, @a2, @a3, @a4, @a5, @a6, @a7, @a8, @a9, @a10, @a1
 GO
 ~~ERROR (Code: 33557097)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a procedure)~~
+~~ERROR (Message: procedure nosuchprocedure(integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer) does not exist)~~
 
 
 
@@ -55,7 +67,7 @@ NULL,  NULL,  NULL,  NULL,  NULL
 GO
 ~~ERROR (Code: 33557097)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a function)~~
+~~ERROR (Message: function nosuchfunction(unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown) does not exist)~~
 
 
 SELECT * FROM NoSuchFunction
@@ -67,7 +79,7 @@ SELECT * FROM NoSuchFunction
 GO
 ~~ERROR (Code: 33557097)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a function)~~
+~~ERROR (Message: function nosuchfunction(integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer) does not exist)~~
 
 
 
@@ -91,10 +103,10 @@ SELECT * FROM NoSuchFunction
 GO
 ~~ERROR (Code: 33557097)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a function)~~
+~~ERROR (Message: function nosuchfunction(integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer) does not exist)~~
 
 
--- max allowed
+-- 100 arguments remains valid
 CREATE PROCEDURE babel_3984_procedure
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -124,17 +136,17 @@ int
 ~~END~~
 
 
--- call for more than max should throw error
+-- call with more arguments than declared should throw error
 EXEC babel_3984_procedure
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 GO
-~~ERROR (Code: 33557097)~~
+~~ERROR (Code: 8144)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a procedure)~~
+~~ERROR (Message: procedure babel_3984_procedure has too many arguments specified.)~~
 
 
--- create for more than allowed should also throw error
+-- more than 100 arguments is allowed by the raised PostgreSQL limit
 CREATE PROCEDURE babel_3984_procedure2
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -148,12 +160,8 @@ CREATE PROCEDURE babel_3984_procedure2
 AS
 SELECT 1
 GO
-~~ERROR (Code: 180)~~
 
-~~ERROR (Message: functions cannot have more than 100 arguments)~~
-
-
--- max allowed
+-- 100 arguments remains valid
 CREATE FUNCTION babel_3984_function
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -190,19 +198,19 @@ int
 ~~END~~
 
 
--- call for more than allowed should throw error
+-- call with more arguments than declared should throw error
 SELECT * FROM babel_3984_function
 (
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 )
 GO
-~~ERROR (Code: 33557097)~~
+~~ERROR (Code: 8144)~~
 
-~~ERROR (Message: cannot pass more than 100 arguments to a function)~~
+~~ERROR (Message: function babel_3984_function has too many arguments specified.)~~
 
 
--- create for more than allowed should also throw error
+-- more than 100 arguments is allowed by the raised PostgreSQL limit
 CREATE FUNCTION babel_3984_function2
 (
 @a0 int, @a1 int, @a2 int, @a3 int, @a4 int, @a5 int, @a6 int, @a7 int, @a8 int, @a9 int, @a10 int, @a11 int, @a12 int, @a13 int, @a14 int, @a15 int,
@@ -226,16 +234,17 @@ RETURN
 )
 END
 GO
-~~ERROR (Code: 180)~~
-
-~~ERROR (Message: functions cannot have more than 100 arguments)~~
-
 
 
 
 DROP PROCEDURE babel_3984_procedure
 GO
 
+DROP PROCEDURE babel_3984_procedure2
+GO
+
 DROP FUNCTION babel_3984_function
 GO
 
+DROP FUNCTION babel_3984_function2
+GO
