@@ -2616,7 +2616,9 @@ public:
 
 
 		bool nop = false;
-		if (ctx->create_table())
+		if (ctx->create_assembly() || ctx->alter_assembly() || ctx->drop_assembly())
+			nop = true;
+		else if (ctx->create_table())
 			nop = post_process_create_table(ctx->create_table(), stmt, ctx);
 		else if (ctx->alter_table())
 			nop = post_process_alter_table(ctx->alter_table(), stmt, ctx);
