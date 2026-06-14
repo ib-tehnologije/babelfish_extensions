@@ -734,6 +734,28 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitCreate_table(TSqlParser::C
 	return visitChildren(ctx);
 }
 
+static bool
+alter_table_adds_only_foreign_key_constraints(TSqlParser::Alter_tableContext *ctx)
+{
+	auto cdtctx = ctx->column_def_table_constraints();
+	bool	seen_fk = false;
+
+	if (!cdtctx)
+		return false;
+
+	for (auto item : cdtctx->column_def_table_constraint())
+	{
+		auto table_constraint = item->table_constraint();
+
+		if (!table_constraint || !table_constraint->FOREIGN())
+			return false;
+
+		seen_fk = true;
+	}
+
+	return seen_fk;
+}
+
 antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitAlter_table(TSqlParser::Alter_tableContext *ctx)
 {
 	// ctx->column_def_table_constraints() will be handled by visitColumn_def_table_constraint. do nothing here.
@@ -755,7 +777,7 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitAlter_table(TSqlParser::Al
 		}
 	}
 
-	if (ctx->ADD() && ctx->WITH())
+	if (ctx->ADD() && ctx->WITH() && !alter_table_adds_only_foreign_key_constraints(ctx))
 		handle(INSTR_UNSUPPORTED_TSQL_ALTER_TABLE_CONSTRAINT_NO_CHECK_ADD, "ALTER TABLE WITH [NO]CHECK ADD", &st_escape_hatch_nocheck_add_constraint, getLineAndPos(ctx->ADD()));
 
 	// unsupported generally
