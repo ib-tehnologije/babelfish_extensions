@@ -1304,6 +1304,27 @@ public:
 
 	}
 
+	void exitData_type(TSqlParser::Data_typeContext *ctx) override
+	{
+	#ifndef ENABLE_SPATIAL_TYPES
+		if (!ctx->simple_name())
+			return;
+
+		TSqlParser::Simple_nameContext *nameContext = ctx->simple_name();
+		if (nameContext->schema &&
+			pg_strcasecmp(stripQuoteFromId(nameContext->schema).c_str(), "sys") != 0)
+			return;
+
+		std::string typeName = stripQuoteFromId(nameContext->name);
+		if (pg_strcasecmp(typeName.c_str(), "geometry") == 0 ||
+			pg_strcasecmp(typeName.c_str(), "geography") == 0)
+		{
+			rewritten_query_fragment.emplace(std::make_pair(ctx->start->getStartIndex(),
+				std::make_pair(::getFullText(ctx), "varbinary(max)")));
+		}
+	#endif
+	}
+
 	/* We are adding handling for CLR_UDT Types in:
 	 * tsqlCommonMutator: for cases CREATE/ALTER View, Procedure, Function
 	 */

@@ -1,0 +1,31 @@
+DROP PROCEDURE IF EXISTS spatial_restore_shim_proc;
+GO
+DROP TABLE IF EXISTS spatial_restore_shim_src;
+GO
+
+CREATE TABLE spatial_restore_shim_src
+(
+    id int NOT NULL,
+    g varbinary(max) NULL
+);
+GO
+
+CREATE PROCEDURE spatial_restore_shim_proc
+AS
+BEGIN
+    SELECT CAST(NULL AS varchar(30)) AS FromField,
+           CAST(NULL AS geometry) AS FromPoint,
+           CAST(NULL AS float) AS Distance
+    INTO #tmpDistances;
+
+    DELETE FROM #tmpDistances;
+
+    INSERT INTO #tmpDistances
+    SELECT CAST('A' AS varchar(30)),
+           s.g,
+           s.g.STDistance(s.g)
+    FROM spatial_restore_shim_src s;
+
+    SELECT COUNT(*) AS row_count FROM #tmpDistances;
+END;
+GO

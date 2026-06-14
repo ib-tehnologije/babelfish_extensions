@@ -1,0 +1,16 @@
+INSERT INTO spatial_restore_shim_src VALUES (1, 0x0102);
+GO
+~~ROW COUNT: 1~~
+
+
+EXEC spatial_restore_shim_proc;
+GO
+~~ROW COUNT: 1~~
+
+~~ROW COUNT: 1~~
+
+~~START~~
+int
+1
+~~END~~
+
