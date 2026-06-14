@@ -1,0 +1,5 @@
+SELECT l.id
+FROM join_omitted_schema_left l
+INNER JOIN.dbo.join_omitted_schema_right r ON r.id = l.id
+ORDER BY l.id;
+GO

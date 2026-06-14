@@ -358,6 +358,31 @@ getFullText(Token* token)
 	return token->getText();
 }
 
+static std::string
+add_rewrite_separator_for_leading_dot_name(ParserRuleContext *ctx, const std::string &rewritten_name)
+{
+	std::string original_name;
+	size_t start_index;
+	std::string prev_char;
+
+	if (ctx == nullptr || ctx->start == nullptr || ctx->start->getInputStream() == nullptr || rewritten_name.empty())
+		return rewritten_name;
+
+	original_name = getFullText(ctx);
+	if (original_name.empty() || original_name.front() != '.')
+		return rewritten_name;
+
+	start_index = ctx->start->getStartIndex();
+	if (start_index == 0)
+		return rewritten_name;
+
+	prev_char = ctx->start->getInputStream()->getText(misc::Interval(start_index - 1, start_index - 1));
+	if (!prev_char.empty() && !isspace((unsigned char) prev_char.front()))
+		return " " + rewritten_name;
+
+	return rewritten_name;
+}
+
 std::string
 stripQuoteFromId(TSqlParser::IdContext *ctx)
 {
@@ -9261,11 +9286,11 @@ rewrite_object_name_with_omitted_db_and_schema_name(T ctx, GetCtxFunc<T> getData
 		// dbo.object -> sys.object for classic catalogs
 		// .object -> sys.object for classic catalogs
 		if (catalog_need_sys_schema)
-			return "sys." + objName;
+			return add_rewrite_separator_for_leading_dot_name(ctx, "sys." + objName);
 
 		// .object -> object : executing user's default schema will be applied at run time
 		else if (!schema)
-			return objName;
+			return add_rewrite_separator_for_leading_dot_name(ctx, objName);
 		else
 			// no rewrite needed
 			return "";
@@ -9301,10 +9326,10 @@ rewrite_object_name_with_omitted_db_and_schema_name(T ctx, GetCtxFunc<T> getData
 		{
 			// .dbo.object -> sys.object for classic catalogs
 			if (catalog_need_sys_schema)
-				return "sys." + objName;
+				return add_rewrite_separator_for_leading_dot_name(ctx, "sys." + objName);
 			else
 				// remove the leading dot
-				return name.substr(1);
+				return add_rewrite_separator_for_leading_dot_name(ctx, name.substr(1));
 		}
 
 		// database.dbo.object -> database.sys.object for classic catalogs
