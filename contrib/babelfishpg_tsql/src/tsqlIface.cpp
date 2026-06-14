@@ -158,6 +158,8 @@ static bool post_process_alter_table(TSqlParser::Alter_tableContext *ctx, PLtsql
 static bool post_process_create_index(TSqlParser::Create_indexContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx);
 static bool post_process_create_database(TSqlParser::Create_databaseContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx);
 static bool post_process_create_type(TSqlParser::Create_typeContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx);
+static bool post_process_create_synonym(TSqlParser::Create_synonymContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx);
+static bool post_process_drop_synonym(TSqlParser::Drop_synonymContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx);
 static void post_process_table_source(TSqlParser::Table_source_itemContext *ctx, PLtsql_expr *expr, ParserRuleContext *baseCtx, List *column_name = NULL, bool is_freetext_predicate = false);
 static void post_process_declare_cursor_statement(PLtsql_stmt_decl_cursor *stmt, TSqlParser::Declare_cursorContext *ctx, tsqlBuilder &builder);
 static void post_process_declare_table_statement(PLtsql_stmt_decl_table *stmt, TSqlParser::Table_type_definitionContext *ctx);
@@ -2624,6 +2626,10 @@ public:
 			nop = post_process_create_database(ctx->create_database(), stmt, ctx);
 		else if (ctx->create_type())
 			nop = post_process_create_type(ctx->create_type(), stmt, ctx);
+		else if (ctx->create_synonym())
+			nop = post_process_create_synonym(ctx->create_synonym(), stmt, ctx);
+		else if (ctx->drop_synonym())
+			nop = post_process_drop_synonym(ctx->drop_synonym(), stmt, ctx);
 		else if (ctx->alter_fulltext_index())
 		{
 			ereport(WARNING,
@@ -8565,6 +8571,37 @@ post_process_create_index(TSqlParser::Create_indexContext *ctx, PLtsql_stmt_exec
 		removeTokenStringFromQuery(stmt->sqlstmt, ctx->COLUMNSTORE(), baseCtx);
 	if (ctx->with_index_options() && !ctx->vector_index_method()) /* Vector indexes can have With clause. */
 		removeCtxStringFromQuery(stmt->sqlstmt, ctx->with_index_options(), baseCtx);
+
+	return false;
+}
+
+static bool
+post_process_create_synonym(TSqlParser::Create_synonymContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx)
+{
+	std::string synonym_name;
+	std::string rewritten_query;
+
+	if (ctx->schema_name_1)
+		synonym_name = ::getFullText(ctx->schema_name_1) + "." + ::getFullText(ctx->synonym_name);
+	else
+		synonym_name = ::getFullText(ctx->synonym_name);
+
+	rewritten_query = "CREATE VIEW " + synonym_name + " AS SELECT * FROM " + ::getFullText(ctx->full_object_name());
+	rewritten_query_fragment.emplace(std::make_pair(ctx->start->getStartIndex(), std::make_pair(::getFullText(ctx), rewritten_query)));
+
+	return false;
+}
+
+static bool
+post_process_drop_synonym(TSqlParser::Drop_synonymContext *ctx, PLtsql_stmt_execsql *stmt, TSqlParser::Ddl_statementContext *baseCtx)
+{
+	std::string rewritten_query = "DROP VIEW ";
+
+	if (ctx->if_exists())
+		rewritten_query += "IF EXISTS ";
+	rewritten_query += ::getFullText(ctx->simple_name());
+
+	rewritten_query_fragment.emplace(std::make_pair(ctx->start->getStartIndex(), std::make_pair(::getFullText(ctx), rewritten_query)));
 
 	return false;
 }

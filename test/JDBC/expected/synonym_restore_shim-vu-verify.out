@@ -1,0 +1,47 @@
+DROP VIEW IF EXISTS synonym_restore_syn;
+GO
+
+DROP TABLE IF EXISTS synonym_restore_base;
+GO
+
+CREATE TABLE synonym_restore_base
+(
+    id int NOT NULL PRIMARY KEY,
+    name varchar(20) NOT NULL
+);
+GO
+
+INSERT INTO synonym_restore_base VALUES (1, 'base');
+GO
+~~ROW COUNT: 1~~
+
+
+CREATE SYNONYM dbo.synonym_restore_syn FOR dbo.synonym_restore_base;
+GO
+
+SELECT name FROM dbo.synonym_restore_syn WHERE id = 1;
+GO
+~~START~~
+varchar
+base
+~~END~~
+
+
+INSERT INTO dbo.synonym_restore_syn VALUES (2, 'via_syn');
+GO
+~~ROW COUNT: 1~~
+
+
+SELECT name FROM dbo.synonym_restore_base WHERE id = 2;
+GO
+~~START~~
+varchar
+via_syn
+~~END~~
+
+
+DROP SYNONYM dbo.synonym_restore_syn;
+GO
+
+DROP TABLE synonym_restore_base;
+GO
