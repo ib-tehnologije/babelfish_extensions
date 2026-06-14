@@ -186,6 +186,7 @@ static bool is_compiling_create_function();
 static void process_query_specification(TSqlParser::Query_specificationContext *qctx, PLtsql_expr_query_mutator *mutator, bool process_local_id_assignment);
 static void process_select_statement(TSqlParser::Select_statementContext *selectCtx, PLtsql_expr_query_mutator *mutator);
 static void process_select_statement_standalone(TSqlParser::Select_statement_standaloneContext *standaloneCtx, PLtsql_expr_query_mutator *mutator, tsqlBuilder &builder);
+static void parenthesize_ordered_union_query_specification(TSqlParser::Query_specificationContext *queryCtx, TSqlParser::Order_by_clauseContext *orderByCtx, PLtsql_expr_query_mutator *mutator);
 static void rewrite_for_clause_nchar_string_literals(TSqlParser::For_clauseContext *ctx);
 template <class T> static std::string rewrite_object_name_with_omitted_db_and_schema_name(T ctx, GetCtxFunc<T> getDatabase, GetCtxFunc<T> getSchema, GetCtxFunc<T> getObject);
 template <class T> static std::string rewrite_information_schema_to_information_schema_tsql(T ctx, GetCtxFunc<T> getSchema);
@@ -1618,6 +1619,18 @@ public:
 	{
 		if (mutator)
 			process_select_statement(ctx, mutator);
+	}
+
+	void exitQuery_expression(TSqlParser::Query_expressionContext *ctx) override
+	{
+		if (mutator && ctx->order_by_qs && !ctx->sql_union().empty())
+			parenthesize_ordered_union_query_specification(ctx->query_specification(), ctx->order_by_qs, mutator);
+	}
+
+	void exitSql_union(TSqlParser::Sql_unionContext *ctx) override
+	{
+		if (mutator && ctx->order_by_qs)
+			parenthesize_ordered_union_query_specification(ctx->query_specification(), ctx->order_by_qs, mutator);
 	}
 
 	void exitQuery_specification(TSqlParser::Query_specificationContext *ctx) override
@@ -4246,6 +4259,19 @@ static void process_select_statement(
 		extractQueryHintsFromOptionClause(octx);
 		removeCtxStringFromQuery(expr, octx, baseCtx);
 	}
+}
+
+static void
+parenthesize_ordered_union_query_specification(
+	TSqlParser::Query_specificationContext *queryCtx,
+	TSqlParser::Order_by_clauseContext *orderByCtx,
+	PLtsql_expr_query_mutator *mutator)
+{
+	if (!queryCtx || !orderByCtx || !mutator)
+		return;
+
+	mutator->add(queryCtx->start->getStartIndex(), "", "(SELECT * FROM (");
+	mutator->add(orderByCtx->stop->getStopIndex() + 1, "", ") AS bbf_ordered_union_branch)");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
