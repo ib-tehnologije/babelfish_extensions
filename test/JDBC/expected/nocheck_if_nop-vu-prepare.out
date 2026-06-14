@@ -1,0 +1,20 @@
+SELECT set_config('babelfishpg_tsql.escape_hatch_nocheck_existing_constraint', 'ignore', 'false');
+GO
+~~START~~
+text
+ignore
+~~END~~
+
+
+CREATE TABLE nocheck_if_nop_t (a int);
+GO
+
+ALTER TABLE nocheck_if_nop_t ADD CONSTRAINT nocheck_if_nop_ck CHECK (a > 0);
+GO
+
+CREATE PROCEDURE nocheck_if_nop_p
+AS
+BEGIN
+    IF (1 = 0) ALTER TABLE dbo.nocheck_if_nop_t WITH CHECK CHECK CONSTRAINT nocheck_if_nop_ck;
+END
+GO

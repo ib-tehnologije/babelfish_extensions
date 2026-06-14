@@ -1,0 +1,19 @@
+EXEC global_cursor_static_vu_p 2;
+GO
+
+EXEC global_cursor_dynamic_vu_p;
+GO
+
+SELECT proc_name, id, val
+FROM global_cursor_vu_log
+ORDER BY proc_name, id;
+GO
+~~START~~
+varchar#!#int#!#int
+dynamic#!#1#!#10
+dynamic#!#2#!#20
+dynamic#!#3#!#30
+static#!#1#!#10
+static#!#2#!#20
+~~END~~
+

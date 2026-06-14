@@ -97,6 +97,7 @@ static void tsql_row_to_xml_path(StringInfo state, Datum record, const char *ele
 static void tsql_row_to_xml_auto(StringInfo state, Datum record, bool elements, bool xsinil, forxml_auto_state *auto_state);
 static void update_tsql_datatype_and_val(HeapTuple tuple, TupleDesc tupdesc, Oid *datatype_oid, Datum *colval, bool binary_base64, int i);
 static char *tsql_escape_xml(const char *str);
+static bool is_xml_path_text_node_name(const char *name);
 
 /* Helper functions for XML AUTO */
 static void xml_auto_parse_metadata(forxml_auto_state *auto_state, const char *metadata_str, int num_cols);
@@ -140,6 +141,12 @@ tsql_escape_xml(const char *str)
 			appendStringInfoChar(&buf, *p);
 	}
 	return buf.data;
+}
+
+static bool
+is_xml_path_text_node_name(const char *name)
+{
+	return pg_strcasecmp(name, "text()") == 0;
 }
 
 static int find_first_changed_level(forxml_auto_state *auto_state, HeapTuple tuple, TupleDesc tupdesc);
@@ -648,7 +655,12 @@ tsql_row_to_xml_path(StringInfo state, Datum record, const char *element_name, b
 					appendStringInfoChar(state, '>');
 					first = false;
 				}
-				if(strncmp(NameStr(att->attname), "?column?", 8) == 0)
+				if (is_xml_path_text_node_name(NameStr(att->attname)))
+				{
+					appendStringInfo(state, "%s",
+									 map_sql_value_to_xml_value(colval, datatype_oid, true));
+				}
+				else if(strncmp(NameStr(att->attname), "?column?", 8) == 0)
 				{
 					/* Dont include Default Colname that is assigned by PG */
 					appendStringInfo(state, "%s",
@@ -687,7 +699,8 @@ tsql_row_to_xml_path(StringInfo state, Datum record, const char *element_name, b
 					first = false;
 				}
 
-				if (strncmp(NameStr(att->attname), "?column?", 8) != 0)
+				if (strncmp(NameStr(att->attname), "?column?", 8) != 0 &&
+					!is_xml_path_text_node_name(NameStr(att->attname)))
 				{
 					/* When PATH('') is used with XSINIL, add xmlns to each element */
 					if (element_name && strlen(element_name) == 0)

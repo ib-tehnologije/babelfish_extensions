@@ -2567,6 +2567,31 @@ $$
 LANGUAGE 'pltsql';
 GRANT EXECUTE ON PROCEDURE sys.sp_helpsrvrolemember TO PUBLIC;
 
+CREATE OR REPLACE PROCEDURE sys.sp_dropsrvrolemember(IN "@loginame" sys.SYSNAME, IN "@rolename" sys.SYSNAME) AS
+$$
+DECLARE @cmd sys.NVARCHAR(776);
+BEGIN
+	SET @cmd = N'ALTER SERVER ROLE ' + sys.quotename(PG_CATALOG.RTRIM(@rolename)) +
+		N' DROP MEMBER ' + sys.quotename(PG_CATALOG.RTRIM(@loginame));
+	EXECUTE(@cmd);
+	RETURN 0;
+END;
+$$
+LANGUAGE 'pltsql';
+GRANT EXECUTE ON PROCEDURE sys.sp_dropsrvrolemember(IN sys.SYSNAME, IN sys.SYSNAME) TO PUBLIC;
+
+CREATE OR REPLACE PROCEDURE sys.sp_droplogin(IN "@loginame" sys.SYSNAME) AS
+$$
+DECLARE @cmd sys.NVARCHAR(517);
+BEGIN
+	SET @cmd = N'DROP LOGIN ' + sys.quotename(PG_CATALOG.RTRIM(@loginame));
+	EXECUTE(@cmd);
+	RETURN 0;
+END;
+$$
+LANGUAGE 'pltsql';
+GRANT EXECUTE ON PROCEDURE sys.sp_droplogin(IN sys.SYSNAME) TO PUBLIC;
+
 CREATE OR REPLACE PROCEDURE sys.sp_helpdbfixedrole("@rolename" sys.SYSNAME = NULL) AS
 $$
 BEGIN

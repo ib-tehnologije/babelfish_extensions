@@ -1,0 +1,8 @@
+CREATE TABLE computed_column_concat_immutability_vu_prepare (
+    acKey char(8) NOT NULL,
+    acKeyView AS ((left([acKey],(2))+'-')+right([acKey],(3))) PERSISTED
+);
+GO
+
+INSERT INTO computed_column_concat_immutability_vu_prepare (acKey) VALUES ('AB123XYZ');
+GO

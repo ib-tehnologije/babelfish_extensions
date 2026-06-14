@@ -271,6 +271,11 @@ coll_info	coll_infos[] =
 	{0, "chinese_prc_ci_as", 2052, 0, 196608, 0, 0x000d, 936, PG_GBK},
 	{0, "chinese_prc_cs_as", 2052, 0, 196608, 0, 0x000c, 936, PG_GBK},
 
+	{0, "croatian_ci_ai", 1050, 0, 196611, 0, 0x000f, 1250, PG_WIN1250},
+	{0, "croatian_ci_as", 1050, 0, 196609, 0, 0x000d, 1250, PG_WIN1250},
+	{0, "croatian_cs_ai", 1050, 0, 196610, 0, 0x000e, 1250, PG_WIN1250},
+	{0, "croatian_cs_as", 1050, 0, 196608, 0, 0x000c, 1250, PG_WIN1250},
+
 	{0, "cyrillic_general_ci_ai", 1049, 0, 196608, 0, 0x000f, 1251, PG_WIN1251},
 	{0, "cyrillic_general_ci_as", 1049, 0, 196608, 0, 0x000d, 1251, PG_WIN1251},
 	{0, "cyrillic_general_cs_as", 1049, 0, 196608, 0, 0x000c, 1251, PG_WIN1251},

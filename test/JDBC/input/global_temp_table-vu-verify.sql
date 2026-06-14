@@ -1,0 +1,42 @@
+CREATE PROCEDURE global_temp_table_vu_p
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF OBJECT_ID(N'tempdb..##global_temp_table_vu_direct') IS NOT NULL
+        DROP TABLE ##global_temp_table_vu_direct;
+
+    IF OBJECT_ID(N'tempdb..##global_temp_table_vu_select_into') IS NOT NULL
+        DROP TABLE ##global_temp_table_vu_select_into;
+
+    CREATE TABLE ##global_temp_table_vu_direct
+    (
+        id int NOT NULL,
+        note varchar(40) NULL
+    );
+
+    INSERT INTO ##global_temp_table_vu_direct (id, note)
+    VALUES (1, 'direct');
+
+    EXEC sys.sp_executesql
+        N'SELECT id + 1 AS id, note + '' dynamic'' AS note
+          INTO ##global_temp_table_vu_select_into
+          FROM ##global_temp_table_vu_direct';
+
+    SELECT id, note
+    FROM ##global_temp_table_vu_direct
+    UNION ALL
+    SELECT id, note
+    FROM ##global_temp_table_vu_select_into
+    ORDER BY id;
+
+    DROP TABLE ##global_temp_table_vu_select_into;
+    DROP TABLE ##global_temp_table_vu_direct;
+END;
+GO
+
+EXEC global_temp_table_vu_p;
+GO
+
+DROP PROCEDURE global_temp_table_vu_p;
+GO

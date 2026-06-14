@@ -115,7 +115,7 @@ $(PLTSQL_NODE_DIR)/pltsql_nodeio.o: $(PLTSQL_NODE_DIR)/pltsql_outfuncs_gen.c $(P
 $(PLTSQL_NODE_DIR)/pltsql_equalfuncs.o: $(PLTSQL_NODE_DIR)/pltsql_equalfuncs_gen.c $(PLTSQL_NODE_DIR)/pltsql_equalfuncs_switch.c
 
 PG_CXXFLAGS += -g -Werror -Wfloat-conversion
-PG_CXXFLAGS += -Wno-deprecated -Wno-error=attributes -Wno-suggest-attribute=format # disable some warnings from ANTLR runtime header
+PG_CXXFLAGS += -Wno-deprecated -Wno-error=attributes -Wno-error=overloaded-virtual -Wno-suggest-attribute=format # disable some warnings from ANTLR runtime header
 PG_CXXFLAGS += -Wno-undef -Wall -Wcpp
 PG_CXXFLAGS += -Wno-register # otherwise C++17 gags on PostgreSQL headers
 PG_CXXFLAGS += -I$(ANTLR4_RUNTIME_INCLUDE_DIR)

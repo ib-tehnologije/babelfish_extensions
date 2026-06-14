@@ -1,0 +1,5 @@
+SELECT COUNT(*) AS procedure_count
+FROM sys.objects
+WHERE name = 'nocheck_if_nop_p'
+  AND type = 'P';
+GO

@@ -50,7 +50,7 @@ select @v+=a, @v2-=a, @v3*=a from t_babel_1241;
 select @v, @v2, @v3;
 go
 
--- compound operator on same target (we don't support this)
+-- compound operator on same target
 declare @v int=1;
 select @v+=a, @v-=b from t_babel_1241;
 select @v

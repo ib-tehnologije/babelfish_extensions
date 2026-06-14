@@ -10772,6 +10772,21 @@ $BODY$
 LANGUAGE plpgsql
 STABLE;
 
+CREATE OR REPLACE FUNCTION sys.babelfish_conv_helper_to_varchar_immutable(IN typename TEXT,
+                                                        IN arg ANYELEMENT,
+                                                        IN try BOOL,
+                                                        IN p_style NUMERIC DEFAULT -1,
+                                                        IN p_style_specified BOOLEAN DEFAULT FALSE)
+RETURNS sys.VARCHAR
+AS
+$BODY$
+BEGIN
+	RETURN sys.babelfish_conv_helper_to_varchar(typename, arg, try, p_style, p_style_specified);
+END;
+$BODY$
+LANGUAGE plpgsql
+IMMUTABLE;
+
 CREATE OR REPLACE FUNCTION sys.babelfish_conv_to_varchar(IN typename TEXT,
 														IN arg TEXT,
 														IN p_style NUMERIC DEFAULT -1)

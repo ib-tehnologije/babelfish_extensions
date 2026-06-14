@@ -56,6 +56,7 @@
 #include "utils/formatting.h"
 
 #include "pltsql.h"
+#include "pltsql-2.h"
 #include "pltsql_node/pltsql_nodetags.h"	/* PLtsql NodeTag values — generated 
 											 * by gen_pltsql_node_support.pl */
 #include "access/xact.h"
@@ -312,6 +313,8 @@ static int	exec_stmt_fetch(PLtsql_execstate *estate,
 							PLtsql_stmt_fetch *stmt);
 static int	exec_stmt_close(PLtsql_execstate *estate,
 							PLtsql_stmt_close *stmt);
+static void materialize_global_cursor_name(PLtsql_execstate *estate,
+										   PLtsql_var *curvar);
 static int	exec_stmt_exit(PLtsql_execstate *estate,
 						   PLtsql_stmt_exit *stmt);
 static int	exec_stmt_return(PLtsql_execstate *estate,
@@ -448,6 +451,7 @@ static void exec_set_rowcount(uint64 rowno);
 static void exec_set_error(PLtsql_execstate *estate, int error, int pg_error, bool error_mapping_failed);
 static void pltsql_create_econtext(PLtsql_execstate *estate);
 static void pltsql_commit_not_required_impl_txn(PLtsql_execstate *estate);
+static bool current_of_cursor_in_call_stack(PLtsql_execstate *estate);
 void		pltsql_destroy_econtext(PLtsql_execstate *estate);
 void		pltsql_estate_cleanup(void);
 static void assign_simple_var(PLtsql_execstate *estate, PLtsql_var *var,
@@ -502,6 +506,13 @@ setup_procedure_output_target_for_insert_exec(PLtsql_execstate *estate, PLtsql_s
 
 static bool	called_for_tsql_itvf_function = false;
 bool  		called_for_tsql_itvf_func(void);
+
+static void
+materialize_global_cursor_name(PLtsql_execstate *estate, PLtsql_var *curvar)
+{
+	if (curvar->isnull && (curvar->cursor_options & TSQL_CURSOR_OPT_GLOBAL))
+		assign_text_var(estate, curvar, curvar->refname);
+}
 
 
 bool
@@ -3133,6 +3144,7 @@ exec_stmt_forc(PLtsql_execstate *estate, PLtsql_stmt_forc *stmt)
 	 * ----------
 	 */
 	curvar = (PLtsql_var *) (estate->datums[stmt->curvar]);
+	materialize_global_cursor_name(estate, curvar);
 	if (!curvar->isnull)
 	{
 		MemoryContext oldcontext;
@@ -4660,6 +4672,25 @@ is_impl_txn_required_for_execsql(PLtsql_stmt_execsql *stmt)
 	return true;
 }
 
+static bool
+current_of_cursor_in_call_stack(PLtsql_execstate *estate)
+{
+	PLExecStateCallStack *cur;
+
+	if (estate && estate->func && estate->func->contains_current_of_cursor)
+		return true;
+
+	for (cur = exec_state_call_stack; cur != NULL; cur = cur->next)
+	{
+		if (cur->estate &&
+			cur->estate->func &&
+			cur->estate->func->contains_current_of_cursor)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * setup_procedure_output_target_for_insert_exec - Create output target for INSERT EXECUTE
  *
@@ -4821,6 +4852,7 @@ exec_stmt_execsql(PLtsql_execstate *estate,
 	CmdType		cmd = CMD_UNKNOWN;
 	bool		enable_txn_in_triggers = !pltsql_disable_txn_in_triggers;
 	bool		support_tsql_trans = pltsql_support_tsql_transactions();
+	bool		disable_auto_commit_for_current_of_cursor = current_of_cursor_in_call_stack(estate);
 	StringInfoData query;
 	char	   *cur_dbname = get_cur_db_name();
 	bool		is_cross_db = stmt->is_cross_db && stmt->db_name && strcmp(cur_dbname, stmt->db_name) != 0;
@@ -4975,7 +5007,9 @@ exec_stmt_execsql(PLtsql_execstate *estate,
 			/* Open nesting level in engine */
 			BeginCompositeTriggers(CurrentMemoryContext);
 			/* TSQL commands must run inside an explicit transaction */
-			if (!pltsql_disable_batch_auto_commit && support_tsql_trans &&
+			if (!pltsql_disable_batch_auto_commit &&
+				!disable_auto_commit_for_current_of_cursor &&
+				support_tsql_trans &&
 				stmt->txn_data == NULL && !IsTransactionBlockActive())
 			{
 				MemoryContext oldCxt = CurrentMemoryContext;
@@ -5239,7 +5273,9 @@ exec_stmt_execsql(PLtsql_execstate *estate,
 		 * procedure invoked by INSERT ... EXECUTE.
 		 */
 		/* TODO To let procedure call from PSQL work with old semantics */
-		if ((!pltsql_disable_batch_auto_commit || (stmt->txn_data != NULL)) &&
+		if (((!pltsql_disable_batch_auto_commit &&
+			  !disable_auto_commit_for_current_of_cursor) ||
+			 (stmt->txn_data != NULL)) &&
 			support_tsql_trans &&
 			(enable_txn_in_triggers || estate->trigdata == NULL) &&
 			!ro_func && !estate->insert_exec)
@@ -6083,6 +6119,7 @@ exec_stmt_open(PLtsql_execstate *estate, PLtsql_stmt_open *stmt)
 	 * ----------
 	 */
 	curvar = (PLtsql_var *) (estate->datums[stmt->curvar]);
+	materialize_global_cursor_name(estate, curvar);
 	if (!curvar->isnull)
 	{
 		MemoryContext oldcontext;
@@ -6276,6 +6313,7 @@ exec_stmt_fetch(PLtsql_execstate *estate, PLtsql_stmt_fetch *stmt)
 	 * ----------
 	 */
 	curvar = (PLtsql_var *) (estate->datums[stmt->curvar]);
+	materialize_global_cursor_name(estate, curvar);
 	if (curvar->isnull)
 		ereport(ERROR,
 				(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),
@@ -6388,6 +6426,7 @@ exec_stmt_close(PLtsql_execstate *estate, PLtsql_stmt_close *stmt)
 	 * ----------
 	 */
 	curvar = (PLtsql_var *) (estate->datums[stmt->curvar]);
+	materialize_global_cursor_name(estate, curvar);
 	if (curvar->isnull)
 		ereport(ERROR,
 				(errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED),

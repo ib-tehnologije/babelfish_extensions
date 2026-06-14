@@ -97,14 +97,15 @@ int#!#int#!#int
 ~~END~~
 
 
--- compound operator on same target (we don't support this)
+-- compound operator on same target
 declare @v int=1;
 select @v+=a, @v-=b from t_babel_1241;
 select @v
 go
-~~ERROR (Code: 33557097)~~
-
-~~ERROR (Message: Babelfish does not support assignment to the same variable in SELECT. variable name: "@v")~~
+~~START~~
+int
+10
+~~END~~
 
 
 -- compound operator and equal operator

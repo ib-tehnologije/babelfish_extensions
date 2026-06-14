@@ -1766,10 +1766,6 @@ GO
 
 ALTER TABLE t_unsupported_cec1 CHECK constraint chk1
 GO
-~~ERROR (Code: 33557097)~~
-
-~~ERROR (Message: 'ALTER TABLE [NO]CHECK' is not currently supported in Babelfish. please use babelfishpg_tsql.escape_hatch_nocheck_existing_constraint to ignore)~~
-
 DROP TABLE t_unsupported_cec1
 GO
 
@@ -2706,10 +2702,8 @@ GO
 CREATE FUNCTION f487() RETURNS TABLE WITH EXECUTE AS 'user' AS
 RETURN (SELECT * FROM t487)
 GO
-~~ERROR (Code: 33557097)~~
-
-~~ERROR (Message: 'EXECUTE AS SELF|OWNER|<user>|<login>' is not currently supported in Babelfish)~~
-
+DROP FUNCTION f487
+GO
 DROP TABLE t487
 GO
 
@@ -2977,10 +2971,6 @@ GO
 
 DECLARE @babel_3571_table_var TABLE(id1 INT, id2 VARCHAR(30), id3 VARBINARY(30), INDEX babel_3571_idx_inline (id1, id2))
 GO
-~~ERROR (Code: 33557097)~~
-
-~~ERROR (Message: 'INLINE INDEX' is not currently supported in Babelfish)~~
-
 DECLARE @babel_3571_table_var TABLE(id1 INT, id2 VARCHAR(30) INDEX babel_3571_idx_inline CLUSTERED (id1, id2), id3 VARBINARY(30))
 GO
 ~~ERROR (Code: 33557097)~~

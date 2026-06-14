@@ -9256,6 +9256,130 @@ tsql_set_typmod_op_expr(ParseState *pstate, Node *OpExp, Node *lexpr, Node* rexp
 		return OpExp;
 }
 
+extern bool pltsql_concat_null_yields_null;
+
+static Oid
+get_generated_column_concat_func_oid(Oid funcid)
+{
+	HeapTuple	proc_tuple;
+	Form_pg_proc proc_form;
+	Oid			sys_nspoid;
+	Oid			argtypes[FUNC_MAX_ARGS];
+	int			nargs;
+	const char *proc_name;
+	const char *immutable_proc_name = NULL;
+	List	   *funcname;
+	Oid			immutable_funcid;
+
+	if (!OidIsValid(funcid))
+		return InvalidOid;
+
+	proc_tuple = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
+	if (!HeapTupleIsValid(proc_tuple))
+		return InvalidOid;
+
+	proc_form = (Form_pg_proc) GETSTRUCT(proc_tuple);
+	sys_nspoid = get_namespace_oid("sys", true);
+
+	if (!OidIsValid(sys_nspoid) || proc_form->pronamespace != sys_nspoid ||
+		proc_form->pronargs != 2)
+	{
+		ReleaseSysCache(proc_tuple);
+		return InvalidOid;
+	}
+
+	proc_name = NameStr(proc_form->proname);
+	if (strcmp(proc_name, "babelfish_concat_wrapper_outer") == 0)
+		immutable_proc_name = pltsql_concat_null_yields_null ?
+			"babelfish_concat_wrapper_outer_immutable" :
+			"babelfish_concat_wrapper_outer_off_immutable";
+	else if (strcmp(proc_name, "babelfish_concat_wrapper") == 0)
+		immutable_proc_name = pltsql_concat_null_yields_null ?
+			"babelfish_concat_wrapper_immutable" :
+			"babelfish_concat_wrapper_off_immutable";
+
+	if (immutable_proc_name == NULL)
+	{
+		ReleaseSysCache(proc_tuple);
+		return InvalidOid;
+	}
+
+	nargs = proc_form->pronargs;
+	memcpy(argtypes, proc_form->proargtypes.values, nargs * sizeof(Oid));
+	ReleaseSysCache(proc_tuple);
+
+	funcname = list_make2(makeString("sys"), makeString(pstrdup(immutable_proc_name)));
+	immutable_funcid = LookupFuncName(funcname, nargs, argtypes, true);
+	list_free_deep(funcname);
+
+	return immutable_funcid;
+}
+
+static bool
+is_generated_column_varchar_convert_type(Oid type)
+{
+	Oid			base_type;
+
+	if (!OidIsValid(type))
+		return false;
+
+	base_type = getBaseType(type);
+	if (base_type == INT2OID || base_type == INT4OID || base_type == INT8OID ||
+		base_type == FLOAT4OID || base_type == FLOAT8OID || base_type == NUMERICOID)
+		return true;
+
+	if (common_utility_plugin_ptr == NULL)
+		return false;
+
+	return (*common_utility_plugin_ptr->is_tsql_tinyint_datatype) (type) ||
+		(*common_utility_plugin_ptr->is_tsql_int_datatype) (type) ||
+		(*common_utility_plugin_ptr->is_tsql_bigint_datatype) (type) ||
+		(*common_utility_plugin_ptr->is_tsql_decimal_datatype) (type);
+}
+
+static Oid
+get_generated_column_varchar_convert_func_oid(FuncExpr *func)
+{
+	HeapTuple	proc_tuple;
+	Form_pg_proc proc_form;
+	Oid			sys_nspoid;
+	Oid			argtypes[FUNC_MAX_ARGS];
+	Node	   *source_arg;
+	List	   *funcname;
+	Oid			immutable_funcid;
+
+	if (!OidIsValid(func->funcid) || list_length(func->args) < 2)
+		return InvalidOid;
+
+	source_arg = lsecond(func->args);
+	if (!is_generated_column_varchar_convert_type(exprType(source_arg)))
+		return InvalidOid;
+
+	proc_tuple = SearchSysCache1(PROCOID, ObjectIdGetDatum(func->funcid));
+	if (!HeapTupleIsValid(proc_tuple))
+		return InvalidOid;
+
+	proc_form = (Form_pg_proc) GETSTRUCT(proc_tuple);
+	sys_nspoid = get_namespace_oid("sys", true);
+
+	if (!OidIsValid(sys_nspoid) || proc_form->pronamespace != sys_nspoid ||
+		proc_form->pronargs != 5 ||
+		strcmp(NameStr(proc_form->proname), "babelfish_conv_helper_to_varchar") != 0)
+	{
+		ReleaseSysCache(proc_tuple);
+		return InvalidOid;
+	}
+
+	memcpy(argtypes, proc_form->proargtypes.values, proc_form->pronargs * sizeof(Oid));
+	ReleaseSysCache(proc_tuple);
+
+	funcname = list_make2(makeString("sys"), makeString("babelfish_conv_helper_to_varchar_immutable"));
+	immutable_funcid = LookupFuncName(funcname, 5, argtypes, true);
+	list_free_deep(funcname);
+
+	return immutable_funcid;
+}
+
 static Node*
 pltsql_post_transform_expr_recurse(ParseState *pstate, Node *expr)
 {
@@ -9275,6 +9399,7 @@ pltsql_post_transform_expr_recurse(ParseState *pstate, Node *expr)
 			{
 				Node		*lexpr,
 							*rexpr;
+				Oid			immutable_funcid;
 				lexpr = linitial(op->args);
 				rexpr = lsecond(op->args);
 
@@ -9290,7 +9415,26 @@ pltsql_post_transform_expr_recurse(ParseState *pstate, Node *expr)
 					rexpr = (Node *) ((RelabelType *) rexpr)->arg;
 
 				expr = tsql_set_typmod_op_expr(pstate, expr, lexpr, rexpr);
+				op = (OpExpr *) expr;
+				immutable_funcid = pstate->p_expr_kind == EXPR_KIND_GENERATED_COLUMN ?
+					get_generated_column_concat_func_oid(op->opfuncid) : InvalidOid;
+
+				if (OidIsValid(immutable_funcid))
+					op->opfuncid = immutable_funcid;
 			}
+			break;
+		}
+		case T_FuncExpr:
+		{
+			FuncExpr   *func = (FuncExpr *) expr;
+			Oid			immutable_funcid;
+
+			immutable_funcid = pstate->p_expr_kind == EXPR_KIND_GENERATED_COLUMN ?
+				get_generated_column_varchar_convert_func_oid(func) : InvalidOid;
+
+			if (OidIsValid(immutable_funcid))
+				func->funcid = immutable_funcid;
+
 			break;
 		}
 		case T_Aggref:

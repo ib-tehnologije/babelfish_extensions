@@ -16,6 +16,7 @@
 
 #include "pltsql.h"
 #include "pltsql-2.h"
+#include "pltsql_node/pltsql_nodetags.h"
 
 extern PLtsql_execstate *get_current_tsql_estate(void);
 extern void assign_text_var(PLtsql_execstate *estate, PLtsql_var *var, const char *str);
@@ -86,6 +87,7 @@ void		pltsql_get_cursor_definition(char *curname, PLtsql_expr **explicit_expr, i
 void		pltsql_update_cursor_fetch_status(char *curname, int fetch_status);
 void		pltsql_update_cursor_row_count(char *curname, int64 row_count);
 void		pltsql_update_cursor_last_operation(char *curname, int last_operation);
+static PLtsql_expr *copy_inline_global_cursor_expr(PLtsql_expr *expr);
 
 static const char *LOCAL_CURSOR_INFIX = "##sys_gen##";
 
@@ -193,6 +195,7 @@ pltsql_declare_cursor(PLtsql_execstate *estate, PLtsql_var *var, PLtsql_expr *ex
 	CursorHashEnt *hentry;
 	Portal		portal;
 	char		mangled_name[NAMEDATALEN];
+	bool		is_global = (cursor_options & TSQL_CURSOR_OPT_GLOBAL) != 0;
 
 	/* Enforce 128-character limit on cursor name */
 	Assert(var->refname != NULL);
@@ -204,6 +207,39 @@ pltsql_declare_cursor(PLtsql_execstate *estate, PLtsql_var *var, PLtsql_expr *ex
 				(errcode(ERRCODE_NAME_TOO_LONG),
 				 errmsg("The identifier that starts with '%.*s' is too long. Maximum length is 128.",
 						cliplen, var->refname)));
+	}
+
+	if (is_global)
+	{
+		char		global_name[NAMEDATALEN];
+		char		entry_name[NAMEDATALEN];
+
+		snprintf(global_name, sizeof(global_name), "%s", var->refname);
+		hentry = (CursorHashEnt *) hash_search(CursorHashTable, global_name, HASH_FIND, NULL);
+		if (hentry != NULL)
+		{
+			portal = SPI_cursor_find(hentry->curname);
+			if (portal != NULL)
+				return false;	/* already opened portal */
+
+			if (hentry->last_operation != 7)
+				return false;	/* not dealloc'd */
+
+			pltsql_delete_cursor_entry(global_name, false);
+		}
+
+		assign_text_var(estate, var, global_name);
+		if (estate && estate->func &&
+			strcmp(estate->func->fn_signature, "inline_code_block") == 0)
+			var->cursor_explicit_expr = copy_inline_global_cursor_expr(explicit_expr);
+		else
+			var->cursor_explicit_expr = explicit_expr;
+		var->cursor_options = cursor_options;
+
+		snprintf(entry_name, sizeof(entry_name), "%s", global_name);
+		pltsql_insert_cursor_entry(entry_name, var->cursor_explicit_expr, cursor_options, NULL);
+
+		return true;
 	}
 
 	if (!var->isnull)
@@ -245,6 +281,37 @@ pltsql_declare_cursor(PLtsql_execstate *estate, PLtsql_var *var, PLtsql_expr *ex
 	pltsql_insert_cursor_entry(mangled_name, explicit_expr, cursor_options, NULL);
 
 	return true;
+}
+
+static PLtsql_expr *
+copy_inline_global_cursor_expr(PLtsql_expr *expr)
+{
+	PLtsql_expr *copy;
+	MemoryContext oldcontext;
+
+	if (expr == NULL)
+		return NULL;
+
+	oldcontext = MemoryContextSwitchTo(CursorHashtabContext);
+	copy = makeNode(PLtsql_expr);
+	copy->query = expr->query ? pstrdup(expr->query) : NULL;
+	copy->plan = NULL;
+	copy->paramnos = NULL;
+	copy->rwparam = -1;
+	copy->func = NULL;
+	copy->ns = NULL;
+	copy->expr_simple_expr = NULL;
+	copy->expr_simple_generation = 0;
+	copy->expr_simple_type = InvalidOid;
+	copy->expr_simple_typmod = -1;
+	copy->expr_simple_mutable = false;
+	copy->expr_simple_state = NULL;
+	copy->expr_simple_in_use = false;
+	copy->expr_simple_lxid = InvalidLocalTransactionId;
+	copy->itvf_query = expr->itvf_query ? pstrdup(expr->itvf_query) : NULL;
+	MemoryContextSwitchTo(oldcontext);
+
+	return copy;
 }
 
 void

@@ -78,6 +78,8 @@ extern Datum pltsql_inline_handler(PG_FUNCTION_ARGS);
 static char *transform_tsql_temp_tables(char *dynstmt);
 static char *next_word(char *dyntext);
 static bool is_next_temptbl(char *dyntext);
+static bool is_tsql_temptbl(char *dyntext, char **name_start);
+static void promote_global_temp_enrs_to_parent(void);
 static bool is_char_identstart(char c);
 static bool is_char_identpart(char c);
 
@@ -1649,6 +1651,8 @@ execute_batch(PLtsql_execstate *estate, char *batch, InlineCodeBlockArgs *args, 
 	}
 	PG_FINALLY();
 	{
+		promote_global_temp_enrs_to_parent();
+
 		/* Delete temporary tables as ENR */
 		pltsql_remove_current_query_env();
 	}
@@ -2312,6 +2316,7 @@ exec_stmt_deallocate(PLtsql_execstate *estate, PLtsql_stmt_deallocate *stmt)
 
 	curvar = (PLtsql_var *) estate->datums[stmt->curvar];
 	Assert(is_cursor_datatype(curvar->datatype->typoid));
+	materialize_global_cursor_name(estate, curvar);
 
 	if (curvar->isnull)
 	{
@@ -2401,17 +2406,20 @@ transform_tsql_temp_tables(char *dynstmt)
 
 	for (cp = dynstmt; *cp; cp++)
 	{
-		if (cp[0] == '#' && is_char_identstart(cp[1]))
+		char	   *name_start = NULL;
+
+		if (is_tsql_temptbl(cp, &name_start))
 		{
 			/*
-			 * Quote this local temporary table identifier.  next_word stops
-			 * as soon as it encounters a non-ident character such as '#', we
-			 * point it to the next character as the start of word while
-			 * specifying the '#' prefix explicitly in the format string.
+			 * Quote T-SQL temporary table identifiers. next_word stops as soon
+			 * as it encounters a non-ident character such as '#', so pass the
+			 * beginning of the actual name and preserve the #/## prefix.
 			 */
-			word = next_word(cp + 1);
-			appendStringInfo(&ds, "\"#%s\"", word);
-			cp += strlen(word);
+			int			prefix_len = name_start - cp;
+
+			word = next_word(name_start);
+			appendStringInfo(&ds, "\"%.*s%s\"", prefix_len, cp, word);
+			cp = name_start + strlen(word) - 1;
 		}
 		else if (is_char_identstart(cp[0]))
 		{
@@ -2455,7 +2463,84 @@ is_next_temptbl(char *dyntext)
 {
 	while (*++dyntext && scanner_isspace(*dyntext));	/* skip whitespace */
 
-	return (dyntext[0] == '#' && is_char_identstart(dyntext[1]));
+	return is_tsql_temptbl(dyntext, NULL);
+}
+
+static bool
+is_tsql_temptbl(char *dyntext, char **name_start)
+{
+	if (dyntext[0] != '#')
+		return false;
+
+	if (dyntext[1] == '#')
+	{
+		if (!is_char_identstart(dyntext[2]))
+			return false;
+		if (name_start)
+			*name_start = dyntext + 2;
+		return true;
+	}
+
+	if (!is_char_identstart(dyntext[1]))
+		return false;
+
+	if (name_start)
+		*name_start = dyntext + 1;
+	return true;
+}
+
+static void
+promote_global_temp_enrs_to_parent(void)
+{
+	QueryEnvironment *child = currentQueryEnv;
+	QueryEnvironment *parent;
+	List	   *promoted_oids = NIL;
+	bool		moved = true;
+
+	if (!child || !child->parentEnv)
+		return;
+
+	parent = child->parentEnv;
+
+	while (moved)
+	{
+		ListCell   *lc;
+
+		moved = false;
+
+		foreach(lc, child->namedRelList)
+		{
+			EphemeralNamedRelation enr = (EphemeralNamedRelation) lfirst(lc);
+			MemoryContext oldcontext;
+			bool		is_global_temp;
+			bool		is_dependency;
+
+			if (enr->md.enrtype != ENR_TSQL_TEMP || enr->md.name == NULL)
+				continue;
+
+			is_global_temp = (strncmp(enr->md.name, "##", 2) == 0);
+			is_dependency = OidIsValid(enr->md.parent_oid) &&
+				list_member_oid(promoted_oids, enr->md.parent_oid);
+
+			if (!is_global_temp && !is_dependency)
+				continue;
+
+			if (get_ENR(parent, enr->md.name, true))
+				continue;
+
+			child->namedRelList = list_delete_ptr(child->namedRelList, enr);
+
+			oldcontext = MemoryContextSwitchTo(parent->memctx);
+			parent->namedRelList = lappend(parent->namedRelList, enr);
+			MemoryContextSwitchTo(oldcontext);
+
+			promoted_oids = lappend_oid(promoted_oids, enr->md.reliddesc);
+			moved = true;
+			break;
+		}
+	}
+
+	list_free(promoted_oids);
 }
 
 static bool

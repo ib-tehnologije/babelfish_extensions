@@ -5,11 +5,31 @@ CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper(leftarg text, rightarg t
 AS 'babelfishpg_tsql', 'babelfish_concat_wrapper'
 LANGUAGE C STABLE PARALLEL SAFE;
 
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_null_yields_null(leftarg text, rightarg text) RETURNS TEXT
+AS 'babelfishpg_tsql', 'babelfish_concat_wrapper_null_yields_null'
+LANGUAGE C IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_null_yields_empty(leftarg text, rightarg text) RETURNS TEXT
+AS 'babelfishpg_tsql', 'babelfish_concat_wrapper_null_yields_empty'
+LANGUAGE C IMMUTABLE PARALLEL SAFE;
+
 CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_outer(leftarg text, rightarg text) RETURNS sys.varchar(8000) AS
 $$
   SELECT sys.babelfish_concat_wrapper(cast(leftarg as text), cast(rightarg as text))
 $$
 LANGUAGE SQL STABLE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_outer_immutable(leftarg text, rightarg text) RETURNS sys.varchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_outer_off_immutable(leftarg text, rightarg text) RETURNS sys.varchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
 
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
@@ -24,6 +44,18 @@ $$
 $$
 LANGUAGE SQL STABLE;
 
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_immutable(leftarg sys.varchar, rightarg sys.varchar) RETURNS sys.varchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_off_immutable(leftarg sys.varchar, rightarg sys.varchar) RETURNS sys.varchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
     LEFTARG = sys.varchar,
@@ -36,6 +68,18 @@ $$
   SELECT sys.babelfish_concat_wrapper(cast(leftarg as text), cast(rightarg as text))
 $$
 LANGUAGE SQL STABLE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_immutable(leftarg sys.nvarchar, rightarg sys.nvarchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_off_immutable(leftarg sys.nvarchar, rightarg sys.nvarchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
 
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
@@ -50,6 +94,18 @@ $$
 $$
 LANGUAGE SQL STABLE;
 
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_immutable(leftarg sys.bpchar, rightarg sys.bpchar) RETURNS sys.varchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_off_immutable(leftarg sys.bpchar, rightarg sys.bpchar) RETURNS sys.varchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
     LEFTARG = sys.bpchar,
@@ -62,6 +118,18 @@ $$
   SELECT sys.babelfish_concat_wrapper(cast(leftarg as text), cast(rightarg as text))
 $$
 LANGUAGE SQL STABLE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_immutable(leftarg sys.nchar, rightarg sys.nchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_off_immutable(leftarg sys.nchar, rightarg sys.nchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
 
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
@@ -77,6 +145,18 @@ $$
 $$
 LANGUAGE SQL STABLE;
 
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_immutable(leftarg sys.varchar, rightarg sys.nvarchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_off_immutable(leftarg sys.varchar, rightarg sys.nvarchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
     LEFTARG = sys.varchar,
@@ -89,6 +169,18 @@ $$
   SELECT sys.babelfish_concat_wrapper(cast(leftarg as text), cast(rightarg as text))
 $$
 LANGUAGE SQL STABLE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_immutable(leftarg sys.nvarchar, rightarg sys.varchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_null(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+
+CREATE OR REPLACE FUNCTION sys.babelfish_concat_wrapper_off_immutable(leftarg sys.nvarchar, rightarg sys.varchar) RETURNS sys.nvarchar(8000) AS
+$$
+  SELECT sys.babelfish_concat_wrapper_null_yields_empty(cast(leftarg as text), cast(rightarg as text))
+$$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
 
 -- Support strings for + operator.
 CREATE OPERATOR sys.+ (
@@ -132,4 +224,3 @@ BEGIN
 END;
 $body$
 LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
-

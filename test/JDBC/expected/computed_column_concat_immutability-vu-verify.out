@@ -1,0 +1,19 @@
+SELECT acKey, acKeyView
+FROM computed_column_concat_immutability_vu_prepare;
+GO
+~~START~~
+char#!#varchar
+AB123XYZ#!#AB-XYZ
+~~END~~
+
+
+SELECT c.name, c.is_computed
+FROM sys.computed_columns c
+WHERE c.object_id = object_id('computed_column_concat_immutability_vu_prepare')
+ORDER BY c.column_id;
+GO
+~~START~~
+varchar#!#bit
+ackeyview#!#1
+~~END~~
+

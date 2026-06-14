@@ -191,6 +191,8 @@ PG_FUNCTION_INFO_V1(objectproperty_internal);
 PG_FUNCTION_INFO_V1(sysutcdatetime);
 PG_FUNCTION_INFO_V1(getutcdate);
 PG_FUNCTION_INFO_V1(babelfish_concat_wrapper);
+PG_FUNCTION_INFO_V1(babelfish_concat_wrapper_null_yields_null);
+PG_FUNCTION_INFO_V1(babelfish_concat_wrapper_null_yields_empty);
 PG_FUNCTION_INFO_V1(getdate_internal);
 PG_FUNCTION_INFO_V1(sysdatetime);
 PG_FUNCTION_INFO_V1(sysdatetimeoffset);
@@ -364,15 +366,15 @@ do { \
 	 ((tgtvar_ != NULL) && (srcvar_ != NULL) && (strcmp(tgtvar_, srcvar_) == 0)))
 
 
-Datum
-babelfish_concat_wrapper(PG_FUNCTION_ARGS)
+static Datum
+babelfish_concat_internal(FunctionCallInfo fcinfo, bool concat_null_yields_null)
 {
 	text		*arg1, *arg2, *new_text;
 	int32		arg1_size, arg2_size, new_text_size;
 	bool		first_param = PG_ARGISNULL(0);
 	bool		second_param = PG_ARGISNULL(1);
 
-	if (pltsql_concat_null_yields_null)
+	if (concat_null_yields_null)
 	{
 		if(first_param || second_param)
 		{
@@ -414,6 +416,24 @@ babelfish_concat_wrapper(PG_FUNCTION_ARGS)
 	}
 
 	PG_RETURN_TEXT_P(new_text);
+}
+
+Datum
+babelfish_concat_wrapper(PG_FUNCTION_ARGS)
+{
+	return babelfish_concat_internal(fcinfo, pltsql_concat_null_yields_null);
+}
+
+Datum
+babelfish_concat_wrapper_null_yields_null(PG_FUNCTION_ARGS)
+{
+	return babelfish_concat_internal(fcinfo, true);
+}
+
+Datum
+babelfish_concat_wrapper_null_yields_empty(PG_FUNCTION_ARGS)
+{
+	return babelfish_concat_internal(fcinfo, false);
 }
 
 /*

@@ -1,0 +1,2 @@
+DROP TABLE collation_tests_croatian_vu_prepare_varchar;
+GO

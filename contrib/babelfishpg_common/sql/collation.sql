@@ -76,6 +76,11 @@ CREATE COLLATION IF NOT EXISTS sys.Chinese_PRC_CS_AS (provider = icu, locale = '
 CREATE COLLATION sys.Chinese_PRC_CI_AS (provider = icu, locale = 'zh_CN@colStrength=secondary', deterministic = false);
 CREATE COLLATION sys.Chinese_PRC_CI_AI (provider = icu, locale = 'zh_CN@colStrength=primary', deterministic = false);
 
+CREATE COLLATION IF NOT EXISTS sys.Croatian_CS_AS (provider = icu, locale = 'hr_HR');
+CREATE COLLATION sys.Croatian_CI_AI (provider = icu, locale = 'hr_HR@colStrength=primary', deterministic = false);
+CREATE COLLATION sys.Croatian_CI_AS (provider = icu, locale = 'hr_HR@colStrength=secondary', deterministic = false);
+CREATE COLLATION sys.Croatian_CS_AI (provider = icu, locale = 'hr_HR@colStrength=primary;colCaseLevel=yes;colCaseFirst=upper', deterministic = false);
+
 CREATE COLLATION IF NOT EXISTS sys.Cyrillic_General_CS_AS (provider = icu, locale='ru_RU');
 CREATE COLLATION sys.Cyrillic_General_CI_AS (provider = icu, locale='ru_RU@colStrength=secondary', deterministic = false);
 CREATE COLLATION sys.Cyrillic_General_CI_AI (provider = icu, locale='ru_RU@colStrength=primary', deterministic = false);

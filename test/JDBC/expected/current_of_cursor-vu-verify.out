@@ -1,0 +1,38 @@
+EXEC current_of_cursor_update_vu_p;
+GO
+
+SELECT id, val
+FROM current_of_cursor_update_vu_t
+ORDER BY id;
+GO
+~~START~~
+int#!#int
+1#!#11
+2#!#12
+3#!#3
+~~END~~
+
+
+SELECT id
+FROM current_of_cursor_nested_vu_log
+ORDER BY id;
+GO
+~~START~~
+int
+1
+2
+~~END~~
+
+
+EXEC current_of_cursor_delete_vu_p;
+GO
+
+SELECT id, val
+FROM current_of_cursor_delete_vu_t
+ORDER BY id;
+GO
+~~START~~
+int#!#int
+3#!#30
+~~END~~
+

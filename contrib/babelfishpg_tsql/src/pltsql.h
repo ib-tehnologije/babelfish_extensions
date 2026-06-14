@@ -1446,6 +1446,7 @@ typedef struct PLtsql_function
 
 	bool		is_itvf;
 	bool		is_mstvf;
+	bool		contains_current_of_cursor;
 
 	PLtsql_resolve_option resolve_option;
 

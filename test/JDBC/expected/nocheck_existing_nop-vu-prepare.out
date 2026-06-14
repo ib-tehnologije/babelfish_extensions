@@ -1,0 +1,15 @@
+CREATE TABLE nocheck_existing_nop_vu_t (
+    id int NOT NULL PRIMARY KEY,
+    val int NOT NULL
+);
+GO
+
+INSERT INTO nocheck_existing_nop_vu_t VALUES (1, 10);
+GO
+~~ROW COUNT: 1~~
+
+
+ALTER TABLE nocheck_existing_nop_vu_t
+ADD CONSTRAINT nocheck_existing_nop_vu_ck CHECK (val > 0);
+GO
+

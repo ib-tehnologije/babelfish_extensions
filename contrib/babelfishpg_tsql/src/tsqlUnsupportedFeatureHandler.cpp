@@ -322,9 +322,7 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitCreate_or_alter_function(T
 			handle(INSTR_UNSUPPORTED_TSQL_ALTER_FUNCTION_NATIVE_COMPILATION_OPTION, option->NATIVE_COMPILATION());
 		else if (option->execute_as_clause())
 		{
-			auto exec_as = option->execute_as_clause();
-			if (!exec_as->CALLER())
-				handle(INSTR_UNSUPPORTED_TSQL_EXECUTE_AS_STMT, "EXECUTE AS SELF|OWNER|<user>|<login>", getLineAndPos(option->execute_as_clause()));
+			/* Object-level EXECUTE AS is accepted for compatibility and ignored during rewrite. */
 		}
 		else if (option->inline_clause() && option->inline_clause()->INLINE())
 			handle(INSTR_UNSUPPORTED_TSQL_CREATE_FUNCTION_INLINE_OPTION, "INLINE", &st_escape_hatch_inline_function_option, getLineAndPos(option->inline_clause()));
@@ -374,9 +372,7 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitCreate_or_alter_procedure(
 			handle(INSTR_UNSUPPORTED_TSQL_ALTER_PROCEDURE_NATIVE_COMPILATION_OPTION, option->NATIVE_COMPILATION());
 		else if (option->execute_as_clause())
 		{
-			auto exec_as = option->execute_as_clause();
-			if (!exec_as->CALLER())
-				handle(INSTR_UNSUPPORTED_TSQL_EXECUTE_AS_STMT, "EXECUTE AS SELF|OWNER|<user>|<login>", getLineAndPos(option->execute_as_clause()));
+			/* Object-level EXECUTE AS is accepted for compatibility and ignored during rewrite. */
 		}
 	}
 
@@ -444,9 +440,7 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitCreate_or_alter_trigger(TS
 				handle(INSTR_UNSUPPORTED_TSQL_DML_TRIGGER_NATIVE_COMPILATION_OPTION, option->NATIVE_COMPILATION());
 			else if (option->execute_as_clause())
 			{
-				auto exec_as = option->execute_as_clause();
-				if (!exec_as->CALLER())
-					handle(INSTR_UNSUPPORTED_TSQL_EXECUTE_AS_STMT, "EXECUTE AS SELF|OWNER|<user>|<login>", getLineAndPos(option->execute_as_clause()));
+				/* Object-level EXECUTE AS is accepted for compatibility and ignored during rewrite. */
 			}
 		}
 
@@ -467,9 +461,7 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitCreate_or_alter_trigger(TS
 				handle(INSTR_UNSUPPORTED_TSQL_DDL_TRIGGER_NATIVE_COMPILATION_OPTION, option->NATIVE_COMPILATION());
 			else if (option->execute_as_clause())
 			{
-				auto exec_as = option->execute_as_clause();
-				if (!exec_as->CALLER())
-					handle(INSTR_UNSUPPORTED_TSQL_EXECUTE_AS_STMT, "EXECUTE AS SELF|OWNER|<user>|<login>", getLineAndPos(option->execute_as_clause()));
+				/* Object-level EXECUTE AS is accepted for compatibility and ignored during rewrite. */
 			}
 		}
 
@@ -709,10 +701,6 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitColumn_def_table_constrain
 
 antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitTable_name(TSqlParser::Table_nameContext *ctx)
 {
-	std::string val = stripQuoteFromId(ctx->id().back());
-	if ((pg_strncasecmp("##", val.c_str(), 2) == 0))
-		handle(INSTR_UNSUPPORTED_TSQL_GLOBAL_TEMPORARY_TABLE, "GLOBAL TEMPORARY TABLE", getLineAndPos(ctx));
-
 	return visitChildren(ctx);
 }
 
@@ -769,9 +757,6 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitAlter_table(TSqlParser::Al
 
 	if (ctx->ADD() && ctx->WITH())
 		handle(INSTR_UNSUPPORTED_TSQL_ALTER_TABLE_CONSTRAINT_NO_CHECK_ADD, "ALTER TABLE WITH [NO]CHECK ADD", &st_escape_hatch_nocheck_add_constraint, getLineAndPos(ctx->ADD()));
-
-	if (ctx->CONSTRAINT())
-		handle(INSTR_UNSUPPORTED_TSQL_ALTER_TABLE_CONSTRAINT_NO_CHECK, "ALTER TABLE [NO]CHECK", &st_escape_hatch_nocheck_existing_constraint, getLineAndPos(ctx->CONSTRAINT()));
 
 	// unsupported generally
 	if (ctx->CHANGE_TRACKING())
@@ -1205,8 +1190,8 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitInsert_statement(TSqlParse
 
 antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitUpdate_statement(TSqlParser::Update_statementContext *ctx)
 {
-	if (ctx->CURRENT()) // CURRENT OF
-		handle(INSTR_UNSUPPORTED_TSQL_UPDATE_WHERE_CURRENT_OF, "CURRENT OF", getLineAndPos(ctx->CURRENT()));
+	if (ctx->CURRENT() && pltsql_curr_compile)
+		pltsql_curr_compile->contains_current_of_cursor = true;
 
 	if (ctx->ddl_object() && ctx->ddl_object()->full_object_name() && ctx->ddl_object()->full_object_name()->DOT().size() >= 3 && ctx->ddl_object()->full_object_name()->server)
 		throw PGErrorWrapperException(ERROR, ERRCODE_FEATURE_NOT_SUPPORTED, "UPDATE on a 4-part object name is not yet supported in Babelfish", getLineAndPos(ctx));
@@ -1222,8 +1207,8 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitUpdate_statement(TSqlParse
 
 antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitDelete_statement(TSqlParser::Delete_statementContext *ctx)
 {
-	if (ctx->CURRENT()) // CURRENT OF
-		handle(INSTR_UNSUPPORTED_TSQL_DELETE_WHERE_CURRENT_OF, "CURRENT OF", getLineAndPos(ctx->CURRENT()));
+	if (ctx->CURRENT() && pltsql_curr_compile)
+		pltsql_curr_compile->contains_current_of_cursor = true;
 
 	return visitChildren(ctx);
 }
@@ -1293,15 +1278,10 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitSet_statement(TSqlParser::
 
 antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitCursor_statement(TSqlParser::Cursor_statementContext *ctx)
 {
-	if (ctx->GLOBAL())
-		handle(INSTR_UNSUPPORTED_TSQL_GLOBAL_CURSOR, "GLOBAL CURSOR", getLineAndPos(ctx->GLOBAL()));
-
 	if (ctx->declare_cursor())
 	{
 		for (auto option : ctx->declare_cursor()->declare_cursor_options())
 		{
-			if (option->GLOBAL())
-				handle(INSTR_UNSUPPORTED_TSQL_GLOBAL_CURSOR, "GLOBAL CURSOR", getLineAndPos(option->GLOBAL()));
 			if (option->KEYSET())
 				handle(INSTR_UNSUPPORTED_TSQL_KEYSET_CURSOR, "KEYSET CURSOR", getLineAndPos(option->KEYSET()));
 			if (option->DYNAMIC())
@@ -1692,9 +1672,7 @@ const char *unsupported_sp_procedures[] = {
 	"sp_dropalias",
 	"sp_drop_trusted_assembly",
 	"sp_dropapprole",
-	"sp_droplogin",
 	"sp_dropremotelogin",
-	"sp_dropsrvrolemember",
 	"sp_dropuser",
 	"sp_generate_database_ledger_digest",
 	"sp_grantdbaccess",
@@ -1904,9 +1882,11 @@ void TsqlUnsupportedFeatureHandlerImpl::checkSupportedRevokeStmt(TSqlParser::Rev
 
 antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitTable_type_definition(TSqlParser::Table_type_definitionContext* ctx)
 {
+	bool is_declare_table_type = dynamic_cast<TSqlParser::Declare_statementContext *>(ctx->parent) != nullptr;
+
 	for (auto tctx : ctx->table_type_indices())
 	{
-		if (tctx->inline_index())
+		if (tctx->inline_index() && !is_declare_table_type)
 			handle(INSTR_UNSUPPORTED_TSQL_INLINE_INDEX, "INLINE INDEX", getLineAndPos(tctx->inline_index()));
 	}
 

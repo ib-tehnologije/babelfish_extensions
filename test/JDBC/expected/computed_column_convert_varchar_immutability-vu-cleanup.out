@@ -1,0 +1,2 @@
+DROP TABLE computed_column_convert_varchar_immutability_vu_prepare;
+GO

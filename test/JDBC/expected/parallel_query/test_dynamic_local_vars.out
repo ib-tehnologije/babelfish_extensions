@@ -50,18 +50,20 @@ declare @i int
 select @i = 0, @i += 2
 select @i
 GO
-~~ERROR (Code: 33557097)~~
-
-~~ERROR (Message: Babelfish does not support assignment to the same variable in SELECT. variable name: "@i")~~
+~~START~~
+int
+2
+~~END~~
 
 
 declare @i int
 select @i = 10, @i += 10
 select @i
 GO
-~~ERROR (Code: 33557097)~~
-
-~~ERROR (Message: Babelfish does not support assignment to the same variable in SELECT. variable name: "@i")~~
+~~START~~
+int
+20
+~~END~~
 
 
 -- sub-expr
@@ -2437,9 +2439,12 @@ declare @i int = 0, @j int
 update local_var_tst set id = id + 2, @i = id, @j = @i * 2, @i = @j
 select @i, @j
 GO
-~~ERROR (Code: 33557097)~~
+~~ROW COUNT: 2~~
 
-~~ERROR (Message: Babelfish does not support assignment to the same variable in SELECT. variable name: "@i")~~
+~~START~~
+int#!#int
+8#!#8
+~~END~~
 
 
 declare @i int = 0, @j int
@@ -2450,7 +2455,7 @@ GO
 
 ~~START~~
 int#!#int
-7#!#14
+11#!#22
 ~~END~~
 
 
@@ -2458,8 +2463,8 @@ select * from local_var_tst order by id
 GO
 ~~START~~
 int
-3
-4
+5
+6
 ~~END~~
 
 

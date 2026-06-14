@@ -1,0 +1,10 @@
+CREATE TABLE computed_column_convert_varchar_immutability_vu_prepare (
+    anPriority tinyint NOT NULL,
+    acName varchar(80) COLLATE Croatian_CI_AS NULL,
+    acPriority AS ((CONVERT([varchar],[anPriority])+' - ')+[acName])
+);
+GO
+
+INSERT INTO computed_column_convert_varchar_immutability_vu_prepare (anPriority, acName)
+VALUES (7, 'Rush');
+GO
