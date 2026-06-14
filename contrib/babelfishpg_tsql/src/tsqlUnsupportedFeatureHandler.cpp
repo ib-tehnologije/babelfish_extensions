@@ -205,9 +205,9 @@ protected:
 
 		// methods call (XML, hierachy, spatial)
 		antlrcpp::Any visitXml_func_arg(TSqlParser::Xml_func_argContext *ctx) override;
-		antlrcpp::Any visitXml_nodes_method(TSqlParser::Xml_nodes_methodContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_XML_NODES, "XML NODES", getLineAndPos(ctx)); return visitChildren(ctx); }
-		antlrcpp::Any visitXml_modify_method(TSqlParser::Xml_modify_methodContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_XML_MODIFY, "XML MODIFY", getLineAndPos(ctx)); return visitChildren(ctx); }
-		antlrcpp::Any visitXml_modify_call(TSqlParser::Xml_modify_callContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_XML_MODIFY, "XML MODIFY", getLineAndPos(ctx)); return visitChildren(ctx); }
+		antlrcpp::Any visitXml_nodes_method(TSqlParser::Xml_nodes_methodContext *ctx) override { return visitChildren(ctx); }
+		antlrcpp::Any visitXml_modify_method(TSqlParser::Xml_modify_methodContext *ctx) override { return visitChildren(ctx); }
+		antlrcpp::Any visitXml_modify_call(TSqlParser::Xml_modify_callContext *ctx) override { return visitChildren(ctx); }
 		antlrcpp::Any visitHierarchyid_methods(TSqlParser::Hierarchyid_methodsContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_HIERARCHYID_METHOD, "HIERARCHYID methods", getLineAndPos(ctx)); return visitChildren(ctx); }
 		#ifndef ENABLE_SPATIAL_TYPES
 		antlrcpp::Any visitSpatial_methods(TSqlParser::Spatial_methodsContext *ctx) override { return visitChildren(ctx); }
@@ -1198,7 +1198,8 @@ antlrcpp::Any TsqlUnsupportedFeatureHandlerImpl::visitUpdate_statement(TSqlParse
 
 	for (auto elem : ctx->update_elem())
 	{
-		if (elem->DOT())
+		if (elem->DOT() &&
+			(!elem->method_name || pg_strcasecmp(stripQuoteFromId(elem->method_name).c_str(), "modify") != 0))
 			handle(INSTR_UNSUPPORTED_TSQL_UPDATE_WITH_METHOD_NAME, "UPDATE with method name", getLineAndPos(elem));
 	}
 

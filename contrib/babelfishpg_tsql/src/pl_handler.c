@@ -825,8 +825,9 @@ pltsql_pre_parse_analyze(ParseState *pstate, RawStmt *parseTree)
 				if (trigStmt->args != NIL)
 				{
 					trig_schema = ((String *) list_nth(((CreateTrigStmt *) trigStmt)->args, 0))->sval;
-					if ((trigStmt->relation->schemaname != NULL && strcasecmp(trig_schema, trigStmt->relation->schemaname) != 0)
-						|| trigStmt->relation->schemaname == NULL)
+					if (trigStmt->relation->schemaname == NULL)
+						trigStmt->relation->schemaname = pstrdup(trig_schema);
+					else if (strcasecmp(trig_schema, trigStmt->relation->schemaname) != 0)
 					{
 						ereport(ERROR,
 								(errcode(ERRCODE_INTERNAL_ERROR),

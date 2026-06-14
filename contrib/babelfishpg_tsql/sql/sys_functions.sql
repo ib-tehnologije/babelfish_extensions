@@ -170,6 +170,40 @@ RETURNS XML
 AS 'babelfishpg_tsql', 'bbf_xmlquery'
 LANGUAGE C STABLE STRICT PARALLEL SAFE;
 
+-- helper function for XML NODES(xpath)
+CREATE OR REPLACE FUNCTION sys.bbf_xmlnodes(xml_element ANYELEMENT, xpath_pattern TEXT)
+RETURNS TABLE(node XML)
+AS
+$BODY$
+DECLARE
+    temp_datatype text;
+    temp_basetype oid;
+    result_set xml[];
+    pltsql_quoted_identifier text;
+BEGIN
+    temp_datatype := sys.translate_pg_type_to_tsql(pg_typeof(xml_element)::oid);
+    IF temp_datatype IS NULL THEN
+        -- for User Defined Datatype, use immediate base type to check for xml_element datatype validation
+        temp_basetype := sys.bbf_get_immediate_base_type_of_UDT(pg_typeof(xml_element)::oid);
+        temp_datatype := sys.translate_pg_type_to_tsql(temp_basetype);
+    END IF;
+
+    IF (temp_datatype != 'xml') THEN
+        RAISE EXCEPTION 'Cannot call methods on %.', temp_datatype;
+    END IF;
+
+    pltsql_quoted_identifier := current_setting('babelfishpg_tsql.quoted_identifier');
+
+    IF (pltsql_quoted_identifier = 'off') THEN
+        RAISE EXCEPTION 'SELECT failed because the following SET options have incorrect settings: ''QUOTED_IDENTIFIER''. Verify that SET options are correct for XML data type methods.';
+    END IF;
+
+    result_set := xpath(xpath_pattern, xml_element);
+    RETURN QUERY SELECT unnest(result_set);
+END
+$BODY$
+LANGUAGE plpgsql STABLE STRICT PARALLEL SAFE;
+
 -- SELECT FOR JSON
 CREATE OR REPLACE FUNCTION sys.tsql_query_to_json_sfunc(
     state INTERNAL,

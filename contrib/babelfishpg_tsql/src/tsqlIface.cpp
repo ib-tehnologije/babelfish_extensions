@@ -197,6 +197,8 @@ template <class T> static void rewrite_geospatial_func_ref_no_arg_query_helper(T
 template <class T> static void rewrite_dot_func_ref_args_query_helper(T ctx, TSqlParser::Method_callContext *method, size_t start_index, size_t arg_list_start_index, size_t arg_list_stop_index);
 template <class T> static void rewrite_function_call_dot_func_ref_args(T ctx);
 template <class T> static void rewrite_function_call_geospatial_func_ref_no_arg(T ctx);
+static void rewrite_xml_nodes_method(TSqlParser::Xml_nodes_methodContext *ctx);
+static void rewrite_xml_modify_method(TSqlParser::Xml_modify_methodContext *ctx);
 static void handleGeospatialFunctionsInFunctionCall(TSqlParser::Function_callContext *ctx);
 static void handleXMLFunctionsInFunctionCall(TSqlParser::Function_callContext *ctx);
 static void handleClrUdtFuncCall(TSqlParser::Clr_udt_func_callContext *ctx);
@@ -1255,6 +1257,16 @@ public:
 			size_t startPosition = ctx->start->getStartIndex();
 			rewritten_query_fragment.emplace(std::make_pair(startPosition, std::make_pair("", "bbf_xml")));
 		}
+	}
+
+	void exitXml_nodes_method(TSqlParser::Xml_nodes_methodContext *ctx) override
+	{
+		rewrite_xml_nodes_method(ctx);
+	}
+
+	void exitXml_modify_method(TSqlParser::Xml_modify_methodContext *ctx) override
+	{
+		rewrite_xml_modify_method(ctx);
 	}
 
 	void exitDatatype_coloncolon_methods(TSqlParser::Datatype_coloncolon_methodsContext *ctx) override
@@ -6403,6 +6415,19 @@ makeSetStatement(TSqlParser::Set_statementContext *ctx, tsqlBuilder &builder)
 		// If the invalid set-option is used, as it is a qualifed SET-option, SET statement will not fail and add a placeholder variable. (please see find_option())
 		TSqlParser::Set_specialContext *set_special_ctx = static_cast<TSqlParser::Set_specialContext*> (ctx->set_special());
 
+		if (set_special_ctx->xml_modify_method() && set_special_ctx->xml_modify_method()->LOCAL_ID())
+		{
+			tree::TerminalNode *xml_target = set_special_ctx->xml_modify_method()->LOCAL_ID();
+			PLtsql_stmt_assign *result = makeNode(PLtsql_stmt_assign);
+
+			result->cmd_type = PLTSQL_STMT_ASSIGN;
+			result->lineno = getLineNo(ctx);
+			result->varno = check_assignable(xml_target);
+			result->expr = makeTsqlExpr(delimitIfAtAtUserVarName(getFullText(xml_target)), true);
+
+			return (PLtsql_stmt *) result;
+		}
+
 		if (set_special_ctx->set_on_off_option().size() > 1)
 		{
 			PLtsql_stmt_execsql *stmt = (PLtsql_stmt_execsql *) makeNode(PLtsql_stmt_execsql);
@@ -7774,6 +7799,15 @@ void process_execsql_destination_update(TSqlParser::Update_statementContext *uct
 	bool has_combined_variable_and_column_update = false;
 	for (auto elem : uctx->update_elem())
 	{
+		if (elem->DOT() && elem->method_name &&
+			pg_strcasecmp(stripQuoteFromId(elem->method_name).c_str(), "modify") == 0)
+		{
+			std::string column_name = getFullText(elem->udt_column_name);
+			std::string noop_assignment = column_name + "=" + column_name;
+
+			replaceCtxStringFromQuery(stmt->sqlstmt, elem, noop_assignment.c_str(), uctx);
+		}
+
 		if (elem->LOCAL_ID())
 		{
 			++target_row_size;
@@ -9518,6 +9552,96 @@ extract_xml_value_typearg(TSqlParser::ExpressionContext *expression)
 	}
 
 	return typename_arg;
+}
+
+/*
+ * Rewrite SQL Server XML nodes table source:
+ *   xml_expr.nodes(xpath)
+ * to a set-returning helper:
+ *   sys.bbf_xmlnodes(xml_expr, xpath)
+ *
+ * The original T-SQL table/column alias that follows the nodes() call is left
+ * in place, e.g. "AS A(s)", so callers can continue to reference A.s.
+ */
+static void
+rewrite_xml_nodes_method(TSqlParser::Xml_nodes_methodContext *ctx)
+{
+	std::vector<size_t> keysToRemove;
+	std::string ctx_str = ::getFullText(ctx);
+	std::string expr = "";
+	int index = 0;
+	int offset_before_dot = 0;
+	size_t ctx_start = ctx->start->getStartIndex();
+	size_t dot_start = ctx->DOT()->getSymbol()->getStartIndex();
+	std::string xquery = ::getFullText(ctx->xquery);
+
+	for (auto &entry : rewritten_query_fragment)
+	{
+		if (entry.first >= ctx_start && entry.first <= ctx->stop->getStopIndex())
+		{
+			int local_index = (int) entry.first - (int) ctx_start;
+
+			expr += ctx_str.substr(index, local_index - index) + entry.second.second;
+			index = local_index + entry.second.first.size();
+			keysToRemove.push_back(entry.first);
+
+			if (entry.first < dot_start)
+				offset_before_dot += (int) entry.second.second.size() - (int) entry.second.first.size();
+		}
+	}
+	for (const auto &key : keysToRemove)
+		rewritten_query_fragment.erase(key);
+	expr += ctx_str.substr(index);
+
+	int source_len = (int) dot_start - (int) ctx_start + offset_before_dot;
+	std::string source_expr = expr.substr(0, source_len);
+	std::string rewritten_exp = "sys.bbf_xmlnodes(" + source_expr + "," + xquery + ")";
+
+	rewritten_query_fragment.emplace(std::make_pair(ctx_start, std::make_pair(ctx_str.c_str(), rewritten_exp.c_str())));
+}
+
+/*
+ * Restore-oriented XML DML shim. SQL Server XML modify() mutates the target XML
+ * value in place. Until full XML DML support is implemented, rewrite it as a
+ * no-op assignment so routines using XML cleanup/update statements can compile:
+ *   xml_expr.modify('...')
+ * becomes:
+ *   xml_expr = xml_expr
+ */
+static void
+rewrite_xml_modify_method(TSqlParser::Xml_modify_methodContext *ctx)
+{
+	std::vector<size_t> keysToRemove;
+	std::string ctx_str = ::getFullText(ctx);
+	std::string expr = "";
+	int index = 0;
+	int offset_before_dot = 0;
+	size_t ctx_start = ctx->start->getStartIndex();
+	size_t dot_start = ctx->DOT()->getSymbol()->getStartIndex();
+
+	for (auto &entry : rewritten_query_fragment)
+	{
+		if (entry.first >= ctx_start && entry.first <= ctx->stop->getStopIndex())
+		{
+			int local_index = (int) entry.first - (int) ctx_start;
+
+			expr += ctx_str.substr(index, local_index - index) + entry.second.second;
+			index = local_index + entry.second.first.size();
+			keysToRemove.push_back(entry.first);
+
+			if (entry.first < dot_start)
+				offset_before_dot += (int) entry.second.second.size() - (int) entry.second.first.size();
+		}
+	}
+	for (const auto &key : keysToRemove)
+		rewritten_query_fragment.erase(key);
+	expr += ctx_str.substr(index);
+
+	int source_len = (int) dot_start - (int) ctx_start + offset_before_dot;
+	std::string source_expr = expr.substr(0, source_len);
+	std::string rewritten_exp = source_expr + "=" + source_expr;
+
+	rewritten_query_fragment.emplace(std::make_pair(ctx_start, std::make_pair(ctx_str.c_str(), rewritten_exp.c_str())));
 }
 
 /*

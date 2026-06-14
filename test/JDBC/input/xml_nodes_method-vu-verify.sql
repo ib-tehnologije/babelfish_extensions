@@ -1,0 +1,14 @@
+DECLARE @x xml;
+SET @x = CAST('<x><r>a</r><r>b</r></x>' AS xml);
+SELECT s.value('.', 'varchar(max)') AS line
+FROM (SELECT @x AS xm) t
+CROSS APPLY xm.nodes('/x/r') AS A(s)
+ORDER BY line
+GO
+
+DECLARE @list xml;
+SET @list = CAST(N'<l><i>alpha</i><i>beta</i></l>' AS xml);
+SELECT n.value('.', 'nvarchar(20)') AS val
+FROM @list.nodes(N'/l/i') AS item(n)
+ORDER BY val
+GO
