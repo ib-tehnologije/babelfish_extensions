@@ -1,0 +1,7 @@
+SELECT converted_date FROM dbo.smalldatetime_date_tvf_consumer();
+GO
+~~START~~
+date
+2024-03-02
+~~END~~
+

@@ -204,6 +204,7 @@ tsql_cast_raw_info_t tsql_cast_raw_infos[] =
 /*  smalldatetime */
 	{PG_CAST_ENTRY, "pg_catalog", "date", "sys", "smalldatetime", NULL, 'i', 'f'},
 	{PG_CAST_ENTRY, "pg_catalog", "time", "sys", "smalldatetime", NULL, 'i', 'f'},
+	{PG_CAST_ENTRY, "sys", "smalldatetime", "pg_catalog", "date", NULL, 'i', 'f'},
 	{PG_CAST_ENTRY, "sys", "smalldatetime", "sys", "datetime", NULL, 'i', 'b'},
 	{PG_CAST_ENTRY, "sys", "smalldatetime", "sys", "datetime2", NULL, 'i', 'b'},
 	{PG_CAST_ENTRY, "sys", "smalldatetime", "pg_catalog", "varchar", NULL, 'i', 'f'},
