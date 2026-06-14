@@ -69,6 +69,10 @@
 					addlit(yytext, yyleng, yyscanner);
 				}
 
+<xbr>{xbrdouble}	{
+					addlitchar(']', yyscanner);
+				}
+
 <xbr>{xbrstop}	{
 					char *ident;
 

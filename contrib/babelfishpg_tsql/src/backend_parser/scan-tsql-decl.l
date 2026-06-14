@@ -3,6 +3,7 @@
 %x xbr
 
 xbrstart         \[
+xbrdouble        \]\]
 xbrstop          \]
 xbrinside        [^\]]+
 
