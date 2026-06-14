@@ -1,0 +1,31 @@
+DROP FUNCTION IF EXISTS dbo.xmlnamespaces_restore_shim;
+GO
+
+SELECT set_config('babelfishpg_tsql.dump_restore', 'on', false);
+GO
+
+CREATE FUNCTION dbo.xmlnamespaces_restore_shim(
+    @p_list xml
+)
+RETURNS TABLE
+AS
+RETURN (
+    WITH XMLNAMESPACES('http://www.w3.org/2001/XMLSchema-instance' AS xsi)
+    SELECT
+        ROW_NUMBER() OVER(ORDER BY parameter) AS position,
+        item.parameter.value(N'fn:local-name(.)', N'nvarchar(128)') AS name,
+        item.parameter.value(N'.[1][not(@xsi:nil = "true")]', N'nvarchar(max)') AS content,
+        item.parameter.value(N'./@value[1]', N'nvarchar(128)') AS attribute
+    FROM
+        @p_list.nodes(N'/l/*') item(parameter)
+);
+GO
+
+SELECT CASE WHEN OBJECT_ID('dbo.xmlnamespaces_restore_shim') IS NULL THEN 0 ELSE 1 END;
+GO
+
+SELECT set_config('babelfishpg_tsql.dump_restore', 'off', false);
+GO
+
+DROP FUNCTION dbo.xmlnamespaces_restore_shim;
+GO

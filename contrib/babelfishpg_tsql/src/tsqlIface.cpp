@@ -93,6 +93,7 @@ extern "C"
 	extern bool check_fulltext_exist(const char *schema_name, const char *table_name, const List *column_name);
 
 	extern int escape_hatch_showplan_all;
+	extern bool babelfish_dump_restore;
 
 	/* To store the time spent in ANTLR parsing for the current batch */
 	extern instr_time antlr_parse_time;
@@ -1108,6 +1109,44 @@ public:
 		rewritten_query_fragment.emplace(std::make_pair(ctx->start->getStartIndex(),
 														std::make_pair(::getFullText(ctx),
 																	   "CAST(" + ::getFullText(ctx->char_string()) + " AS " + target_type + ")")));
+	}
+
+	void exitWith_expression(TSqlParser::With_expressionContext *ctx) override
+	{
+		if (!babelfish_dump_restore || !ctx->XMLNAMESPACES())
+			return;
+
+		Token *startToken;
+		Token *endToken = ctx->RR_BRACKET()->getSymbol();
+
+		if (ctx->common_table_expression().empty())
+		{
+			startToken = ctx->WITH()->getSymbol();
+		}
+		else
+		{
+			startToken = ctx->XMLNAMESPACES()->getSymbol();
+
+			size_t rrBracketStop = endToken->getStopIndex();
+			size_t firstCteStart = ctx->common_table_expression().front()->start->getStartIndex();
+
+			for (auto comma : ctx->COMMA())
+			{
+				Token *commaToken = comma->getSymbol();
+				size_t commaStart = commaToken->getStartIndex();
+
+				if (commaStart > rrBracketStop && commaStart < firstCteStart)
+				{
+					endToken = commaToken;
+					break;
+				}
+			}
+		}
+
+		size_t startIdx = startToken->getStartIndex();
+		size_t endIdx = endToken->getStopIndex();
+		rewritten_query_fragment.emplace(std::make_pair(startIdx,
+			std::make_pair(startToken->getInputStream()->getText(misc::Interval(startIdx, endIdx)), "")));
 	}
 
 	void enterTransaction_statement(TSqlParser::Transaction_statementContext *ctx) override {
