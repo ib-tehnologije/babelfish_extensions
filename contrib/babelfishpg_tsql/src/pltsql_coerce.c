@@ -2637,6 +2637,38 @@ starts_with(const char *text, const char *pat)
 	return true;
 }
 
+static bool
+is_spatial_wkt_keyword(const char *value, const char *keyword)
+{
+	int			keyword_len = strlen(keyword);
+	char		next;
+
+	if (pg_strncasecmp(value, keyword, keyword_len) != 0)
+		return false;
+
+	next = value[keyword_len];
+	return next == '\0' || next == '(' || isspace((unsigned char) next);
+}
+
+static bool
+is_spatial_wkt_literal(const char *value)
+{
+	while (isspace((unsigned char) *value))
+		value++;
+
+	return is_spatial_wkt_keyword(value, "POINT") ||
+		   is_spatial_wkt_keyword(value, "LINESTRING") ||
+		   is_spatial_wkt_keyword(value, "POLYGON") ||
+		   is_spatial_wkt_keyword(value, "MULTIPOINT") ||
+		   is_spatial_wkt_keyword(value, "MULTILINESTRING") ||
+		   is_spatial_wkt_keyword(value, "MULTIPOLYGON") ||
+		   is_spatial_wkt_keyword(value, "GEOMETRYCOLLECTION") ||
+		   is_spatial_wkt_keyword(value, "CIRCULARSTRING") ||
+		   is_spatial_wkt_keyword(value, "COMPOUNDCURVE") ||
+		   is_spatial_wkt_keyword(value, "CURVEPOLYGON") ||
+		   is_spatial_wkt_keyword(value, "FULLGLOBE");
+}
+
 static Node *
 tsql_coerce_string_literal_hook(Oid targetTypeId,
 								int32 targetTypeMod, int32 baseTypeMod,
@@ -2656,6 +2688,7 @@ tsql_coerce_string_literal_hook(Oid targetTypeId,
 	{
 		int			i;
 		bool		val_is_non_integer = starts_with(value, "0x") || starts_with(value, "0b") || starts_with(value, "0o") ;
+		bool		allow_spatial_wkt_varbinary = false;
 
 		if (ccontext != COERCION_EXPLICIT)
 		{
@@ -2668,9 +2701,16 @@ tsql_coerce_string_literal_hook(Oid targetTypeId,
 						(errcode(ERRCODE_CANNOT_COERCE),
 						 errmsg("cannot coerce string literal to binary datatype")));
 			if ((*common_utility_plugin_ptr->is_tsql_varbinary_datatype) (baseTypeId))
-				ereport(ERROR,
-						(errcode(ERRCODE_CANNOT_COERCE),
-						 errmsg("cannot coerce string literal to varbinary datatype")));
+			{
+#ifndef ENABLE_SPATIAL_TYPES
+				allow_spatial_wkt_varbinary =
+					targetTypeMod == -1 && is_spatial_wkt_literal(value);
+#endif
+				if (!allow_spatial_wkt_varbinary)
+					ereport(ERROR,
+							(errcode(ERRCODE_CANNOT_COERCE),
+							 errmsg("cannot coerce string literal to varbinary datatype")));
+			}
 		}
 
 		if (val_is_non_integer &&

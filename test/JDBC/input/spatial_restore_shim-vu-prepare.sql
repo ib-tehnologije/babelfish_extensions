@@ -2,11 +2,20 @@ DROP PROCEDURE IF EXISTS spatial_restore_shim_proc;
 GO
 DROP TABLE IF EXISTS spatial_restore_shim_src;
 GO
+DROP TABLE IF EXISTS spatial_restore_shim_wkt_default;
+GO
 
 CREATE TABLE spatial_restore_shim_src
 (
     id int NOT NULL,
     g varbinary(max) NULL
+);
+GO
+
+CREATE TABLE spatial_restore_shim_wkt_default
+(
+    id int NOT NULL,
+    g varbinary(max) NOT NULL CONSTRAINT DF_spatial_restore_shim_wkt_default_g DEFAULT ('POLYGON EMPTY')
 );
 GO
 

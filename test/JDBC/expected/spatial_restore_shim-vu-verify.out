@@ -14,3 +14,18 @@ int
 1
 ~~END~~
 
+
+INSERT INTO spatial_restore_shim_wkt_default(id) VALUES (1);
+GO
+~~ROW COUNT: 1~~
+
+
+SELECT DATALENGTH(g) AS wkt_bytes
+FROM spatial_restore_shim_wkt_default
+WHERE id = 1;
+GO
+~~START~~
+int
+13
+~~END~~
+
