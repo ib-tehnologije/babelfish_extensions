@@ -194,7 +194,15 @@ protected:
 		antlrcpp::Any visitPartition_function_call(TSqlParser::Partition_function_callContext *ctx) override;
 
 		antlrcpp::Any visitHierarchyid_static_method(TSqlParser::Hierarchyid_static_methodContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_EXPRESSION_HIERARCHID, "hierarchid", getLineAndPos(ctx)); return visitChildren(ctx); }
-		antlrcpp::Any visitOdbc_literal_expr(TSqlParser::Odbc_literal_exprContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_EXPRESSION_ODBC_LITERAL, "odbc literal", getLineAndPos(ctx)); return visitChildren(ctx); }
+		antlrcpp::Any visitOdbc_literal_expr(TSqlParser::Odbc_literal_exprContext *ctx) override {
+			auto literal = ctx->odbc_literal();
+
+			if (literal && (literal->D() || literal->T() || literal->TS() || literal->GUID()))
+				return visitChildren(ctx);
+
+			handle(INSTR_UNSUPPORTED_TSQL_EXPRESSION_ODBC_LITERAL, "odbc literal", getLineAndPos(ctx));
+			return visitChildren(ctx);
+		}
 		antlrcpp::Any visitDollar_action_expr(TSqlParser::Dollar_action_exprContext *ctx) override { handle(INSTR_UNSUPPORTED_TSQL_EXPRESSION_DOLLAR_ACTION, "$ACTION", getLineAndPos(ctx)); return visitChildren(ctx); }
 
 		antlrcpp::Any visitFunc_proc_name_schema(TSqlParser::Func_proc_name_schemaContext *ctx) override;

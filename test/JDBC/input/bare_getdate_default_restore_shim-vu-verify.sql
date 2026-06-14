@@ -1,0 +1,13 @@
+CREATE FUNCTION dbo.bare_getdate_default_restore(@d date = getdate)
+RETURNS int
+AS
+BEGIN
+    RETURN DATEDIFF(day, @d, CAST(getdate() AS date));
+END;
+GO
+
+SELECT CASE WHEN OBJECT_ID('dbo.bare_getdate_default_restore') IS NULL THEN 0 ELSE 1 END;
+GO
+
+DROP FUNCTION dbo.bare_getdate_default_restore;
+GO

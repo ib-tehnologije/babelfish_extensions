@@ -1090,6 +1090,26 @@ public:
 		in_create_or_alter_trigger = false;
 	}
 
+	void exitOdbc_literal(TSqlParser::Odbc_literalContext *ctx) override
+	{
+		std::string target_type;
+
+		if (ctx->D())
+			target_type = "date";
+		else if (ctx->T())
+			target_type = "time";
+		else if (ctx->TS())
+			target_type = "datetime2";
+		else if (ctx->GUID())
+			target_type = "uniqueidentifier";
+		else
+			return;
+
+		rewritten_query_fragment.emplace(std::make_pair(ctx->start->getStartIndex(),
+														std::make_pair(::getFullText(ctx),
+																	   "CAST(" + ::getFullText(ctx->char_string()) + " AS " + target_type + ")")));
+	}
+
 	void enterTransaction_statement(TSqlParser::Transaction_statementContext *ctx) override {
 		if (in_create_or_alter_function && ctx->COMMIT()){
 			throw PGErrorWrapperException(ERROR, ERRCODE_FEATURE_NOT_SUPPORTED, "Invalid use of a side-effecting operator 'COMMIT TRANSACTION' within a function.", 0, 0);
@@ -3814,7 +3834,10 @@ public:
 			else {
 				// Unquoted string, add quotes: there cannot be any quotes in the string otherwise it would 
 				// not have been parsed as an identifier
-				str = "'" + str + "'";
+				if (pg_strcasecmp(str.c_str(), "getdate") == 0)
+					str = "getdate()";
+				else
+					str = "'" + str + "'";
 			}
 
 			rewritten_query_fragment.emplace(std::make_pair(ctx->start->getStartIndex(), std::make_pair(getFullText(ctx), str)));
