@@ -7372,7 +7372,7 @@ pltsql_validator(PG_FUNCTION_ARGS)
 			}
 
 			/* Test-compile the function */
-			if (is_itvf && !babelfish_dump_restore)
+			if (is_itvf)
 			{
 				PLtsql_stmt_return_query *returnQueryStmt;
 
@@ -7462,7 +7462,7 @@ pltsql_validator(PG_FUNCTION_ARGS)
 		 * definition list by planning the query in the function, and
 		 * modifying the pg_proc entry for this function.
 		 */
-		if (is_itvf && !babelfish_dump_restore)
+		if (is_itvf)
 		{
 			SPIPlanPtr	spi_plan;
 			int			spi_rc;

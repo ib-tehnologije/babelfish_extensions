@@ -43,6 +43,26 @@ LANGUAGE plpgsql;
  * final behaviour.
  */
 
+CREATE OR REPLACE FUNCTION sys.round(number PG_CATALOG.FLOAT8, length INTEGER)
+RETURNS sys.float
+AS $$
+BEGIN
+    RETURN sys.round(number::PG_CATALOG.NUMERIC, length);
+END;
+$$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION sys.round(number PG_CATALOG.FLOAT8, length INTEGER) TO PUBLIC;
+
+CREATE OR REPLACE FUNCTION sys.round(number PG_CATALOG.FLOAT8, length INTEGER, function INTEGER)
+RETURNS sys.float
+AS $$
+BEGIN
+    RETURN sys.round(number::PG_CATALOG.NUMERIC, length, function);
+END;
+$$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION sys.round(number PG_CATALOG.FLOAT8, length INTEGER, function INTEGER) TO PUBLIC;
+
 CREATE OR REPLACE FUNCTION sys.babelfish_update_server_collation_name() RETURNS VOID
 LANGUAGE C
 AS 'babelfishpg_common', 'babelfish_update_server_collation_name';
