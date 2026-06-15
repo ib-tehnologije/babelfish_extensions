@@ -253,6 +253,57 @@ CREATE OR REPLACE AGGREGATE sys.tsql_select_for_xml_text_agg(
     FINALFUNC = tsql_query_to_xml_text_ffunc
 );
 
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate sys.bit) RETURNS sys.DATETIME
+AS
+$body$
+BEGIN
+        return sys.dateadd_numeric_representation_helper(datepart, num, startdate);
+END;
+$body$
+LANGUAGE plpgsql IMMUTABLE parallel safe;
+
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate numeric) RETURNS sys.DATETIME
+AS
+$body$
+BEGIN
+        return sys.dateadd_numeric_representation_helper(datepart, num, startdate);
+END;
+$body$
+LANGUAGE plpgsql IMMUTABLE parallel safe;
+
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate real) RETURNS sys.DATETIME
+AS
+$body$
+BEGIN
+        return sys.dateadd_numeric_representation_helper(datepart, num, startdate);
+END;
+$body$
+LANGUAGE plpgsql IMMUTABLE parallel safe;
+
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate double precision) RETURNS sys.DATETIME
+AS
+$body$
+BEGIN
+        return sys.dateadd_numeric_representation_helper(datepart, num, startdate);
+END;
+$body$
+LANGUAGE plpgsql IMMUTABLE parallel safe;
+
+CREATE OR REPLACE FUNCTION sys.dateadd_numeric_representation_helper(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate ANYELEMENT) RETURNS sys.DATETIME AS $$
+DECLARE
+    digit_to_startdate sys.DATETIME;
+BEGIN
+    IF pg_typeof(startdate) IN ('bigint'::regtype, 'int'::regtype, 'smallint'::regtype,'sys.tinyint'::regtype,'sys.decimal'::regtype,
+    'numeric'::regtype, 'float'::regtype,'double precision'::regtype, 'real'::regtype, 'sys.money'::regtype,'sys.smallmoney'::regtype,'sys.bit'::regtype) THEN
+        digit_to_startdate := CAST(startdate AS sys.DATETIME);
+    END IF;
+
+    RETURN sys.dateadd_internal_datetime(CASE WHEN pg_catalog.lower(datepart) = 'y' THEN 'dayofyear' ELSE datepart END, num, digit_to_startdate, 3)::sys.DATETIME;
+END;
+$$
+STRICT
+LANGUAGE plpgsql IMMUTABLE parallel safe;
+
 -- Drops the temporary procedure used by the upgrade script.
 -- Please have this be one of the last statements executed in this upgrade script.
 DROP PROCEDURE sys.babelfish_drop_deprecated_object(varchar, varchar, varchar, varchar);

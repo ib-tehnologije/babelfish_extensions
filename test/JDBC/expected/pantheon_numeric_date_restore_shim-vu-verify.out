@@ -1,0 +1,41 @@
+-- tsql
+DROP TABLE IF EXISTS pantheon_numeric_date_restore_shim;
+GO
+
+-- psql
+CREATE TABLE master_dbo.pantheon_numeric_date_restore_shim
+(
+    id int NOT NULL,
+    addatedue sys.datetime NULL,
+    CONSTRAINT pantheon_numeric_date_restore_shim_ck CHECK
+    (
+        (addatedue)::sys.datetime OPERATOR(sys.=)
+        sys.dateadd('day'::text, sys.datediff('day'::text, (0)::sys.smalldatetime, addatedue), (0)::double precision)
+    )
+);
+GO
+
+INSERT INTO master_dbo.pantheon_numeric_date_restore_shim VALUES (1, '2024-08-20 00:00:00.0'::sys.datetime);
+GO
+~~ROW COUNT: 1~~
+
+
+-- tsql
+SELECT COUNT(*) FROM pantheon_numeric_date_restore_shim;
+GO
+~~START~~
+int
+1
+~~END~~
+
+
+SELECT sys.dateadd('y', 1, CAST(0 AS FLOAT));
+GO
+~~START~~
+datetime
+1900-01-02 00:00:00.0
+~~END~~
+
+
+DROP TABLE pantheon_numeric_date_restore_shim;
+GO

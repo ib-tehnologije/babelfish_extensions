@@ -2059,7 +2059,7 @@ END;
 $body$
 LANGUAGE plpgsql IMMUTABLE parallel safe;
 
-CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate sys.bit) RETURNS DATETIME
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate sys.bit) RETURNS sys.DATETIME
 AS
 $body$
 BEGIN
@@ -2068,7 +2068,7 @@ END;
 $body$
 LANGUAGE plpgsql IMMUTABLE parallel safe;
 
-CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate numeric) RETURNS DATETIME
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate numeric) RETURNS sys.DATETIME
 AS
 $body$
 BEGIN
@@ -2078,7 +2078,7 @@ $body$
 LANGUAGE plpgsql IMMUTABLE parallel safe;
 
 
-CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate real) RETURNS DATETIME
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate real) RETURNS sys.DATETIME
 AS
 $body$
 BEGIN
@@ -2087,7 +2087,7 @@ END;
 $body$
 LANGUAGE plpgsql IMMUTABLE parallel safe;
 
-CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate double precision) RETURNS DATETIME
+CREATE OR REPLACE FUNCTION sys.dateadd(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate double precision) RETURNS sys.DATETIME
 AS
 $body$
 BEGIN
@@ -2111,41 +2111,16 @@ END;
 $body$
 LANGUAGE plpgsql IMMUTABLE parallel safe;
 
-CREATE OR REPLACE FUNCTION sys.dateadd_numeric_representation_helper(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate ANYELEMENT) RETURNS DATETIME AS $$
+CREATE OR REPLACE FUNCTION sys.dateadd_numeric_representation_helper(IN datepart PG_CATALOG.TEXT, IN num INTEGER, IN startdate ANYELEMENT) RETURNS sys.DATETIME AS $$
 DECLARE
-    digit_to_startdate DATETIME;
+    digit_to_startdate sys.DATETIME;
 BEGIN
     IF pg_typeof(startdate) IN ('bigint'::regtype, 'int'::regtype, 'smallint'::regtype,'sys.tinyint'::regtype,'sys.decimal'::regtype,
     'numeric'::regtype, 'float'::regtype,'double precision'::regtype, 'real'::regtype, 'sys.money'::regtype,'sys.smallmoney'::regtype,'sys.bit'::regtype) THEN
-        digit_to_startdate := CAST('1900-01-01 00:00:00.0' AS sys.DATETIME) + CAST(startdate as sys.DATETIME);
+        digit_to_startdate := CAST(startdate AS sys.DATETIME);
     END IF;
 
-    CASE datepart
-	WHEN 'year' THEN
-		RETURN digit_to_startdate + make_interval(years => num);
-	WHEN 'quarter' THEN
-		RETURN digit_to_startdate + make_interval(months => num * 3);
-	WHEN 'month' THEN
-		RETURN digit_to_startdate + make_interval(months => num);
-	WHEN 'dayofyear', 'y' THEN
-		RETURN digit_to_startdate + make_interval(days => num);
-	WHEN 'day' THEN
-		RETURN digit_to_startdate + make_interval(days => num);
-	WHEN 'week' THEN
-		RETURN digit_to_startdate + make_interval(weeks => num);
-	WHEN 'weekday' THEN
-		RETURN digit_to_startdate + make_interval(days => num);
-	WHEN 'hour' THEN
-		RETURN digit_to_startdate + make_interval(hours => num);
-	WHEN 'minute' THEN
-		RETURN digit_to_startdate + make_interval(mins => num);
-	WHEN 'second' THEN
-		RETURN digit_to_startdate + make_interval(secs => num);
-	WHEN 'millisecond' THEN
-		RETURN digit_to_startdate + make_interval(secs => (num::numeric) * 0.001);
-	ELSE
-		RAISE EXCEPTION 'The datepart % is not supported by date function dateadd for data type datetime.', datepart;
-	END CASE;
+    RETURN sys.dateadd_internal_datetime(CASE WHEN pg_catalog.lower(datepart) = 'y' THEN 'dayofyear' ELSE datepart END, num, digit_to_startdate, 3)::sys.DATETIME;
 END;
 $$
 STRICT
